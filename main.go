@@ -7,6 +7,7 @@ import (
 
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
+	"github.com/jcuga/hax/output"
 )
 
 func main() {
@@ -24,8 +25,8 @@ func main() {
 	flag.StringVar(&inMode, "input", "", "Input mode. See I/O Modes section for options.")
 	flag.StringVar(&inMode, "i", "", "")
 	var outMode string
-	flag.StringVar(&outMode, "output", "display", "Output mode. See I/O Modes section for options (default: display).")
-	flag.StringVar(&outMode, "o", "display", "")
+	flag.StringVar(&outMode, "output", "", "Output mode. (defaults to hexeditor formatted output).")
+	flag.StringVar(&outMode, "o", "", "")
 
 	// Optional input limit/offset. This can be in decimal or hex.
 	var offset string
@@ -37,6 +38,8 @@ func main() {
 
 	// Customize display mode output:
 	var colWidth string
+	// TODO: don't have a default, then default based on output mode if not specified.
+	// TODO: update -h/usage output to reflect this change.
 	flag.StringVar(&colWidth, "width", "16", "Column Width: how many bytes to display per row (default: 16).")
 	flag.StringVar(&colWidth, "w", "16", "")
 	var pageSize string
@@ -63,8 +66,6 @@ func main() {
 		f = flag.Lookup("input")
 		fmt.Fprintf(w, "\t-i, --%s\t%s\n", f.Name, f.Usage)
 		fmt.Fprintf(w, "\t\t\tIf stdin or --file input, defaults to raw, if --str defaults to hex.\n")
-		fmt.Fprintf(w, "\t\t\t--input=display can be used with --str set to copy+paste of prev output\n")
-		fmt.Fprintf(w, "\t\t\tto re-feed formatted output.\n")
 
 		f = flag.Lookup("offset")
 		fmt.Fprintf(w, "\t-n, --%s\t%s\n", f.Name, f.Usage)
@@ -89,7 +90,6 @@ func main() {
 		fmt.Fprintf(w, "  * r, raw\tRaw bytes.\n")
 		fmt.Fprintf(w, "  * h, hex\tHex string.\n")
 		fmt.Fprintf(w, "  * b, base64\tBase64 string.\n")
-		fmt.Fprintf(w, "  * d, display\tFormatted hex printout.\n")
 
 		fmt.Fprintf(w, "\nNote:\n")
 		fmt.Fprintf(w, "  * If no --file or --str set, will get input from stdin.\n")
@@ -99,7 +99,7 @@ func main() {
 
 		fmt.Fprintf(w, "\nTODO: optional commands like conv to num, str, unicode, binary, math, etc.\n")
 
-		fmt.Fprintf(w, "\nExamples:\n\nTodo, some examples here. Include less -R and out to file via > \n")
+		fmt.Fprintf(w, "\nExamples:\n\nTodo use -e, --examples to see examples\n")
 	}
 
 	flag.Parse()
@@ -111,16 +111,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, err = input.GetReader(opts)
+	inReader, err := input.GetInput(opts)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
+	}
+
+	if f, ok := inReader.(*os.File); ok {
+		defer f.Close()
 	}
 
 	// TODO: output with mode
 	// TODO: warn and don't allow raw output to char device
 
 	fmt.Printf("Parsed Options: %v\n", opts) // TODO: remove me
+
+	isPipe := false
+	fi, _ := os.Stdout.Stat()
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		isPipe = true
+	}
+
+	// TODO: do this only if there's no other cmd/func (ex: interpret as numeric, insert, replace, etc)
+	if err := output.Output(inReader, isPipe, opts); err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
 
 	// TODO: implement various command/utility funcs (parse numeric, str, unicode, math)
 	// TODO: implement edit/insert/replace contents

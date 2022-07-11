@@ -41,8 +41,9 @@ func parseMode(input string) (IOMode, error) {
 		return Hex, nil
 	case "base64", "b64", "b":
 		return Base64, nil
-	case "display", "d":
-		return Display, nil
+	// TOOD: not supporting display input?
+	// case "display", "d":
+	// 	return Display, nil
 	default:
 		return -1, fmt.Errorf("Not a valid mode: %q.", input)
 	}
