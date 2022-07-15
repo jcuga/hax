@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/jcuga/hax/input"
@@ -40,11 +41,11 @@ func main() {
 	var colWidth string
 	// TODO: don't have a default, then default based on output mode if not specified.
 	// TODO: update -h/usage output to reflect this change.
-	flag.StringVar(&colWidth, "width", "16", "Column Width: how many bytes to display per row (default: 16).")
+	flag.StringVar(&colWidth, "width", "16", "Column Width: Num bytes per row (default: 16).")
 	flag.StringVar(&colWidth, "w", "16", "")
 	var pageSize string
-	flag.StringVar(&pageSize, "page", "0", "Page size to break up output (default 0 means no page breaks).")
-	flag.StringVar(&pageSize, "p", "0", "")
+	flag.StringVar(&pageSize, "page", "10", "Display page breaks every N (default 10, 0=never).")
+	flag.StringVar(&pageSize, "p", "10", "")
 	var alwaysPretty bool
 	flag.BoolVar(&alwaysPretty, "pretty", false, "Always pretty-print/style output.")
 	flag.BoolVar(&alwaysPretty, "y", false, "")
@@ -107,24 +108,24 @@ func main() {
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
 		offset, limit, colWidth, pageSize, alwaysPretty, quiet)
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
 	inReader, err := input.GetInput(opts)
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
-	if f, ok := inReader.(*os.File); ok {
+	if f, ok := inReader.(io.Closer); ok {
 		defer f.Close()
 	}
 
 	// TODO: output with mode
 	// TODO: warn and don't allow raw output to char device
 
-	fmt.Printf("Parsed Options: %v\n", opts) // TODO: remove me
+	// fmt.Printf("Parsed Options: %v\n", opts) // TODO: remove me
 
 	isPipe := false
 	fi, _ := os.Stdout.Stat()
@@ -134,7 +135,7 @@ func main() {
 
 	// TODO: do this only if there's no other cmd/func (ex: interpret as numeric, insert, replace, etc)
 	if err := output.Output(inReader, isPipe, opts); err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -142,3 +143,25 @@ func main() {
 	// TODO: implement edit/insert/replace contents
 	// TODO: binary level stuff... display, maths...
 }
+
+// TODO: stdin and display mode needs fixing--need to buffer/wait for full line
+// worth before displaying line. otherwise offsets not right
+// could calc offests but want even/full lines.
+// TODO: update: this is only when less + key input? maybe just calc row offsets
+// based on what was read and leave rest as is?
+
+// TODO: hex reader that ignores newline/cr/tab/whitespace?
+// TODO: ditto base64
+// TODO: then work on hex/base64 outputs
+
+// TODO: other future stuff
+// * count num bytes?
+// * num conversions/interpret
+// * accept expressions for offsets (0x0a0b + 9) Q: if one num hex assume all are?
+// * str/unicode parsing?
+// * search/find
+// NOTE: for modify ops, require -y, without -y just show diff and say rerun with -y
+// * replace
+// * replace with repeat byte or byte pattern
+// * insert
+// * insert repeat of char. ex zero out area or buffer area
