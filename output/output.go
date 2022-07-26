@@ -10,7 +10,6 @@ import (
 )
 
 func Output(reader io.Reader, isPipe bool, opts options.Options) error {
-	// TODO: fix base64 and hex intput that has newlines
 	// TODO: add support for base64 and hex output with optional width
 	// TODO: prevent raw out to char device (or prompt y/n?)
 	switch opts.OutputMode {
