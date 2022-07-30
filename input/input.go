@@ -105,20 +105,16 @@ func NewFixedLengthBufferedReader(reader io.Reader) *fixedLengthBufferedReader {
 // NOTE: has to be pointer-receiver as this function modifies fields!
 // Otherwise each call to Read is modifying a copy!
 func (r *fixedLengthBufferedReader) Read(p []byte) (int, error) {
-	fmt.Printf("READ called with req buf len: %d\n", len(p))
 	reqLen := len(p)
 	bufferedLen := r.bufFilledLen - r.bufIndex
-	fmt.Printf("bufferedLen: %d, r.bufFilledLen: %d, r.bufIndex: %d\n", bufferedLen, r.bufFilledLen, r.bufIndex)
 	if bufferedLen >= reqLen {
 		copy(p, r.buf[r.bufIndex:r.bufIndex+reqLen])
 		r.bufIndex += reqLen
-		fmt.Printf("RETURN-A reqLen: %d\n", reqLen)
 		return reqLen, nil
 	}
 
 	if bufferedLen > 0 { // have some amount < reqLen but not zero
 		// copy remaining buffered data
-		fmt.Printf("Use existing bufferedLen: %d\n", bufferedLen)
 		copy(p, r.buf[r.bufIndex:r.bufIndex+bufferedLen])
 		r.bufIndex += bufferedLen
 	}
@@ -131,19 +127,14 @@ func (r *fixedLengthBufferedReader) Read(p []byte) (int, error) {
 		n, err := r.wrapped.Read(r.buf)
 		r.bufIndex = 0
 		r.bufFilledLen = n
-		fmt.Printf("read more internally, n: %d\n", n)
 
 		if n == 0 {
-			fmt.Printf("RETURN-B, ret: %d, err: %v\n", alreadyReadLen, err)
 			return alreadyReadLen, io.EOF
 		}
 
 		if n >= outstandingLen {
-			fmt.Printf("copy using n: %d, alreadyReadLen: %d, outstandingLen: %d, return: %d, err: %v\n", n, alreadyReadLen, outstandingLen, (alreadyReadLen + outstandingLen), err)
 			copy(p[alreadyReadLen:], r.buf[:outstandingLen])
 			r.bufIndex += outstandingLen
-			fmt.Printf("r.bufIndex: %d, r.bufFilledLen: %d\n", r.bufIndex, r.bufFilledLen)
-			fmt.Printf("RETURN-C, ret: %d, err: %v\n", alreadyReadLen+outstandingLen, err)
 			return alreadyReadLen + outstandingLen, err
 		}
 
@@ -155,7 +146,6 @@ func (r *fixedLengthBufferedReader) Read(p []byte) (int, error) {
 		alreadyReadLen += n
 
 		if outstandingLen < 1 {
-			fmt.Printf("RETURN-D outstandingLen: %d, returnign alreadyLen: %d, err: %v\n", outstandingLen, alreadyReadLen, err)
 			return alreadyReadLen, err
 		}
 	}

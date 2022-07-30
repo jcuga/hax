@@ -56,7 +56,6 @@ func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
 		if n < 1 {
 			break
 		}
-		fmt.Printf("Read Len: %d\n", n)
 		m := n
 		if count+int64(n) > opts.Limit {
 			// truncate output of current buffer to not exceed limit
