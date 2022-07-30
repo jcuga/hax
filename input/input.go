@@ -12,20 +12,44 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func GetInput(opts options.Options) (io.Reader, error) {
+// Gets variety of input (stdin, string, file) with format (base64, hex, raw)
+// and returns as a FixedLengthBufferedReader which will get n bytes
+// for each read([n]byte) call aside from the least/EOF one which may return
+// less.  This allows us to easily read and get back expected amount of
+// data without having to worry about base64 vs hex vs raw which all have
+// different input vs represented byte lengths.
+func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, error) {
 	var reader io.Reader
+	var closer io.Closer
+	// flag for whether we Seek on a raw formatted file to enforce opts.Offset
+	// since this is going to be much faster than our read loop further below.
+	// For raw file input (not file but base64 or hex contents),
+	// seek is the way to go.  When we're not a flle, or a file with a non-raw
+	// format, we rely on wrapped readers to ensure the proper amount of
+	// "true" bytes are skipped since we're dealing with base64/hex
+	// "synthetic" bytes input.
+	fileOffsetOptimization := false
+
 	if len(opts.InputData) > 0 {
 		reader = strings.NewReader(opts.InputData)
+		closer = nil
 	} else if len(opts.Filename) > 0 {
 		f, err := os.Open(opts.Filename)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		// NOTE: calling code will have to check type of return value
-		// and defer close for file.
 		reader = f
+		closer = f
+		if opts.Offset > 0 && opts.InputMode == options.Raw {
+			if _, err := f.Seek(opts.Offset, os.SEEK_SET); err != nil {
+				defer f.Close()
+				return nil, nil, fmt.Errorf("Failed to seek offset: %d on input file, error: %v", opts.Offset, err)
+			}
+			fileOffsetOptimization = true
+		}
 	} else {
 		reader = bufio.NewReader(os.Stdin)
+		closer = nil
 	}
 
 	// Now turn reader into reader with given mode...
@@ -41,10 +65,29 @@ func GetInput(opts options.Options) (io.Reader, error) {
 	case options.Base64:
 		modeReader = base64.NewDecoder(base64.StdEncoding, &whitespaceFilteringReader{reader})
 	default:
-		return nil, fmt.Errorf("Invalid input mode: %v", opts.InputMode)
+		return nil, closer, fmt.Errorf("Invalid input mode: %v", opts.InputMode)
 	}
 
-	return modeReader, nil
+	fixedReader := NewFixedLengthBufferedReader(modeReader)
+
+	if opts.Offset > 0 && !fileOffsetOptimization {
+		// Lazy seek--just read enough data and discard.
+		seekBufSize := int64(1024 * 10)
+		curOffset := int64(0)
+		fill := make([]byte, seekBufSize)
+		for curOffset != opts.Offset {
+			remaining := opts.Offset - curOffset
+			if remaining < seekBufSize {
+				fixedReader.Read(fill[:remaining])
+				curOffset += remaining
+			} else {
+				fixedReader.Read(fill)
+				curOffset += seekBufSize
+			}
+		}
+	}
+
+	return fixedReader, closer, nil
 }
 
 // Wraps an io.Reader and ignores/omits whitespace.
@@ -75,6 +118,8 @@ func (r whitespaceFilteringReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// FixedLengthBufferedReader will read/fill the entire requested []byte
+// on each read excepting the last one which may yield partial amount.
 // For base64 input, calling read(buf) with a buffer of size n will often
 // (when len(buf) is not a multiple of 3) yield less than a full buf or data.
 // This wrapped reader type will fill up the entire requested buf on a Read
@@ -84,17 +129,17 @@ func (r whitespaceFilteringReader) Read(p []byte) (int, error) {
 // function to request oen full row of data at a time via a simple Read call.
 // This may also be useful for other future input formats that may not reliably
 // yield a full buffer of data on Read.
-type fixedLengthBufferedReader struct {
+type FixedLengthBufferedReader struct {
 	wrapped      io.Reader
 	buf          []byte
 	bufFilledLen int
 	bufIndex     int
 }
 
-func NewFixedLengthBufferedReader(reader io.Reader) *fixedLengthBufferedReader {
-	return &fixedLengthBufferedReader{
+func NewFixedLengthBufferedReader(reader io.Reader) *FixedLengthBufferedReader {
+	return &FixedLengthBufferedReader{
 		wrapped:      reader,
-		buf:          make([]byte, 1024*5),
+		buf:          make([]byte, 1024*10),
 		bufFilledLen: 0,
 		bufIndex:     0,
 	}
@@ -104,7 +149,7 @@ func NewFixedLengthBufferedReader(reader io.Reader) *fixedLengthBufferedReader {
 // has reached EOF in which case p may be partially filled.
 // NOTE: has to be pointer-receiver as this function modifies fields!
 // Otherwise each call to Read is modifying a copy!
-func (r *fixedLengthBufferedReader) Read(p []byte) (int, error) {
+func (r *FixedLengthBufferedReader) Read(p []byte) (int, error) {
 	reqLen := len(p)
 	bufferedLen := r.bufFilledLen - r.bufIndex
 	if bufferedLen >= reqLen {

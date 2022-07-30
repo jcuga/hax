@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/jcuga/hax/input"
@@ -112,18 +111,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	inReader, err := input.GetInput(opts)
+	inReader, inCloser, err := input.GetInput(opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-
-	if f, ok := inReader.(io.Closer); ok {
-		defer f.Close()
+	if inCloser != nil {
+		defer inCloser.Close()
 	}
-
-	// TODO: output with mode
-	// TODO: warn and don't allow raw output to char device
 
 	// fmt.Printf("Parsed Options: %v\n", opts) // TODO: remove me
 
@@ -143,25 +138,3 @@ func main() {
 	// TODO: implement edit/insert/replace contents
 	// TODO: binary level stuff... display, maths...
 }
-
-// TODO: stdin and display mode needs fixing--need to buffer/wait for full line
-// worth before displaying line. otherwise offsets not right
-// could calc offests but want even/full lines.
-// TODO: update: this is only when less + key input? maybe just calc row offsets
-// based on what was read and leave rest as is?
-
-// TODO: hex reader that ignores newline/cr/tab/whitespace?
-// TODO: ditto base64
-// TODO: then work on hex/base64 outputs
-
-// TODO: other future stuff
-// * count num bytes?
-// * num conversions/interpret
-// * accept expressions for offsets (0x0a0b + 9) Q: if one num hex assume all are?
-// * str/unicode parsing?
-// * search/find
-// NOTE: for modify ops, require -y, without -y just show diff and say rerun with -y
-// * replace
-// * replace with repeat byte or byte pattern
-// * insert
-// * insert repeat of char. ex zero out area or buffer area

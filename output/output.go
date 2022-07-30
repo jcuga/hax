@@ -7,10 +7,11 @@ import (
 	"os"
 
 	"github.com/jcuga/hax/input"
+
 	"github.com/jcuga/hax/options"
 )
 
-func Output(reader io.Reader, isPipe bool, opts options.Options) error {
+func Output(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) error {
 	// TODO: add support for base64 and hex output with optional width
 	// TODO: prevent raw out to char device (or prompt y/n?)
 	switch opts.OutputMode {
@@ -24,8 +25,7 @@ func Output(reader io.Reader, isPipe bool, opts options.Options) error {
 
 // TODO: clean up this func
 // TODO: idea: only have hex not dec+hex, but put dec on ascii line
-func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
-	reader = input.NewFixedLengthBufferedReader(reader)
+func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	showPretty := !isPipe || opts.Display.Pretty
 	if opts.Limit <= 0 {
 		opts.Limit = math.MaxInt64
@@ -43,6 +43,15 @@ func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
 
 	count := int64(0)
 	row := int64(0)
+	// NOTE: under the hood we're using an input.FixedLengthBufferedReader
+	// which will fill up the entire requested buffer on read so we'll
+	// get the full opts.Display.Width full of data on all but our last
+	// read call which will have partial data before EOF.
+	// Without this custom reader type, we don't have a strong guarantee
+	// of getting all our requested buffer filled, and in fact, with base64
+	// input, the underlying base64 decoder will return often less than
+	// the requested size. Thankfully, our cusotm reader will smooth things
+	// out so we always get a full line.
 	buf := make([]byte, opts.Display.Width)
 	fmt.Println("")
 	for {
@@ -110,7 +119,6 @@ func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
 			}
 		}
 		fmt.Println("")
-		row += 1
 		if count >= opts.Limit {
 			break
 		}
@@ -127,7 +135,7 @@ func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
 			}
 			fmt.Println("")
 		}
-
+		row += 1
 	}
 	fmt.Println("")
 }
