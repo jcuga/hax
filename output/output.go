@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 
+	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
 )
 
@@ -24,6 +25,7 @@ func Output(reader io.Reader, isPipe bool, opts options.Options) error {
 // TODO: clean up this func
 // TODO: idea: only have hex not dec+hex, but put dec on ascii line
 func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
+	reader = input.NewFixedLengthBufferedReader(reader)
 	showPretty := !isPipe || opts.Display.Pretty
 	if opts.Limit <= 0 {
 		opts.Limit = math.MaxInt64
@@ -54,6 +56,7 @@ func displayHex(reader io.Reader, isPipe bool, opts options.Options) {
 		if n < 1 {
 			break
 		}
+		fmt.Printf("Read Len: %d\n", n)
 		m := n
 		if count+int64(n) > opts.Limit {
 			// truncate output of current buffer to not exceed limit
