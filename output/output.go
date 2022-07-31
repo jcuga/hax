@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strings"
 
 	"github.com/jcuga/hax/input"
 
@@ -43,6 +44,10 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 
 	count := int64(0)
 	row := int64(0)
+	offsetPadding := int64(0)
+	if opts.Offset > 0 {
+		offsetPadding = opts.Offset % int64(opts.Display.Width)
+	}
 	// NOTE: under the hood we're using an input.FixedLengthBufferedReader
 	// which will fill up the entire requested buffer on read so we'll
 	// get the full opts.Display.Width full of data on all but our last
@@ -55,7 +60,18 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 	buf := make([]byte, opts.Display.Width)
 	fmt.Println("")
 	for {
-		n, err := reader.Read(buf)
+		// pad/indent offset input so row start counts are nice and aligned.
+		// ex: offset 3 --> 3 spaces of padding on first row and row count
+		// still says 0 versus no padding and row count starts at 3.
+		// So for first row of offset data, grab less than normal.
+		var n int
+		var err error
+		if row == 0 && offsetPadding > 0 {
+			n, err = reader.Read(buf[:len(buf)-int(offsetPadding)])
+		} else {
+			n, err = reader.Read(buf)
+		}
+
 		if err != nil {
 			if err != io.EOF {
 				fmt.Printf("Error reading data: %v\n", err)
@@ -72,23 +88,27 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 		}
 		count += int64(n)
 
-		rowStart := row*int64(opts.Display.Width) + opts.Offset
+		rowStart := row*int64(opts.Display.Width) + (opts.Offset - offsetPadding)
+		offsetPaddingWhitespace := ""
+		if row == 0 && offsetPadding > 0 {
+			// NOTE: 3 spaces per offset byte as we have 2 byte hex plus space in between each.
+			offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding))
+		}
 		if showPretty {
-			fmt.Printf("\033[36m%8d %8X: \033[0m", rowStart, rowStart)
+			fmt.Printf("\033[36m%8d %8X: \033[0m%s", rowStart, rowStart, offsetPaddingWhitespace)
 		} else {
-			fmt.Printf("%8d %8X: ", rowStart, rowStart)
+			fmt.Printf("%8d %8X: %s", rowStart, rowStart, offsetPaddingWhitespace)
 		}
 
 		// Print hex
 		for i := 0; i < m; i++ {
 			if showPretty {
-				// fmt.Printf("%02X ", buf[i])
 				fmt.Printf("\033[1m%02X\033[0m ", buf[i])
 			} else {
 				fmt.Printf("%02X ", buf[i])
 			}
 		}
-		fmt.Printf("\n%19s", "")
+		fmt.Printf("\n%19s%s", "", offsetPaddingWhitespace)
 		if !opts.Display.NoAscii {
 			// Print ascii
 			for i := 0; i < m; i++ {
