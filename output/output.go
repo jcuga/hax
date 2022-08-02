@@ -32,7 +32,7 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 		opts.Limit = math.MaxInt64
 	}
 	fmt.Println("")
-	fmt.Printf("%19s", "")
+	fmt.Printf("%15s", "")
 	for i := 0; i < opts.Display.Width; i++ {
 		if showPretty {
 			fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
@@ -58,7 +58,6 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 	// the requested size. Thankfully, our cusotm reader will smooth things
 	// out so we always get a full line.
 	buf := make([]byte, opts.Display.Width)
-	fmt.Println("")
 	for {
 		// pad/indent offset input so row start counts are nice and aligned.
 		// ex: offset 3 --> 3 spaces of padding on first row and row count
@@ -95,20 +94,16 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 			offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding))
 		}
 		if showPretty {
-			fmt.Printf("\033[36m%8d %8X: \033[0m%s", rowStart, rowStart, offsetPaddingWhitespace)
+			fmt.Printf("\033[36m%13X: \033[0m%s", rowStart, offsetPaddingWhitespace)
 		} else {
-			fmt.Printf("%8d %8X: %s", rowStart, rowStart, offsetPaddingWhitespace)
+			fmt.Printf("%13X: %s", rowStart, offsetPaddingWhitespace)
 		}
 
 		// Print hex
 		for i := 0; i < m; i++ {
-			if showPretty {
-				fmt.Printf("\033[1m%02X\033[0m ", buf[i])
-			} else {
-				fmt.Printf("%02X ", buf[i])
-			}
+			fmt.Printf("%02X ", buf[i])
 		}
-		fmt.Printf("\n%19s%s", "", offsetPaddingWhitespace)
+		fmt.Printf("\n%15s%s", "", offsetPaddingWhitespace)
 		if !opts.Display.NoAscii {
 			// Print ascii
 			for i := 0; i < m; i++ {
@@ -145,7 +140,7 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 
 		if opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == (int64(opts.Display.PageSize)-1) {
 			fmt.Println("")
-			fmt.Printf("%19s", "")
+			fmt.Printf("%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
 				if showPretty {
 					fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
