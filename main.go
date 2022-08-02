@@ -104,6 +104,15 @@ func main() {
 
 	flag.Parse()
 
+	// Don't allow any positional args--currently everything is a flag.
+	// TODO: update this to only enforce when given opts don't allow positional
+	// if/when opts with positional args are added.
+	if flag.NArg() > 0 {
+		fmt.Printf("Unhandled positional args (%d)\n", flag.NArg())
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
 		offset, limit, colWidth, pageSize, alwaysPretty, quiet)
 	if err != nil {
