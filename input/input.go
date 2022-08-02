@@ -174,6 +174,11 @@ func (r *FixedLengthBufferedReader) Read(p []byte) (int, error) {
 		r.bufFilledLen = n
 
 		if n == 0 {
+			if err != nil && err != io.EOF {
+				// pass along any non-trivial error--for example: if underlying
+				// hex/base64 decoder finds invalid data.
+				return alreadyReadLen, err
+			}
 			return alreadyReadLen, io.EOF
 		}
 

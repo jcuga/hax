@@ -31,16 +31,6 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 	if opts.Limit <= 0 {
 		opts.Limit = math.MaxInt64
 	}
-	fmt.Println("")
-	fmt.Printf("%15s", "")
-	for i := 0; i < opts.Display.Width; i++ {
-		if showPretty {
-			fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
-		} else {
-			fmt.Printf("%2X ", i)
-		}
-	}
-	fmt.Println("")
 
 	count := int64(0)
 	row := int64(0)
@@ -73,13 +63,34 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 
 		if err != nil {
 			if err != io.EOF {
-				fmt.Printf("Error reading data: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
 				os.Exit(1)
 			}
 		}
+
 		if n < 1 {
+			if row == 0 {
+				fmt.Printf("<NO DATA>\n")
+				os.Exit(3) // TODO: document return codes
+			}
+
 			break
 		}
+
+		if row == 0 {
+			fmt.Println("")
+			fmt.Printf("%15s", "")
+			for i := 0; i < opts.Display.Width; i++ {
+				if showPretty {
+					fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
+				} else {
+					fmt.Printf("%2X ", i)
+				}
+			}
+			fmt.Println("")
+
+		}
+
 		m := n
 		if count+int64(n) > opts.Limit {
 			// truncate output of current buffer to not exceed limit
