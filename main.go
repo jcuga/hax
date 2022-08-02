@@ -43,8 +43,8 @@ func main() {
 	flag.StringVar(&colWidth, "width", "16", "Column Width: Num bytes per row (default: 16).")
 	flag.StringVar(&colWidth, "w", "16", "")
 	var pageSize string
-	flag.StringVar(&pageSize, "page", "10", "Display page breaks every N (default 10, 0=never).")
-	flag.StringVar(&pageSize, "p", "10", "")
+	flag.StringVar(&pageSize, "page", "4", "Display page breaks every N (default 4, 0=never).")
+	flag.StringVar(&pageSize, "p", "4", "")
 	var alwaysPretty bool
 	flag.BoolVar(&alwaysPretty, "pretty", false, "Always pretty-print/style output.")
 	flag.BoolVar(&alwaysPretty, "y", false, "")
