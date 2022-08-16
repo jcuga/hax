@@ -25,7 +25,6 @@ func Output(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.O
 }
 
 // TODO: clean up this func
-// TODO: idea: only have hex not dec+hex, but put dec on ascii line
 func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	showPretty := !isPipe || opts.Display.Pretty
 	if opts.Limit <= 0 {
@@ -149,7 +148,9 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 			break
 		}
 
-		if opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == (int64(opts.Display.PageSize)-1) {
+		// NOTE: checking && m == opts.Display.Width to avoid printing after a partial line as taht implies the subsequent
+		// read will be EOF.
+		if opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == (int64(opts.Display.PageSize)-1) && m == opts.Display.Width {
 			fmt.Println("")
 			fmt.Printf("%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
