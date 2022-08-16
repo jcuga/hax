@@ -61,9 +61,14 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 	case options.Hex:
 		// The std hex decoder expects only 2-digit hex chars, no whitespace.
 		// Wrap in a reader that filters out whitespace.
-		modeReader = hex.NewDecoder(&whitespaceFilteringReader{reader})
+		// Now also ignoring "\x" to support byte literal strings like: "\xaa\xbb\xcc\xdd"
+		modeReader = hex.NewDecoder(NewFilteringReader(reader, []byte{
+			'\r', '\n', '\t', ' ', '\\', 'x',
+		}))
 	case options.Base64:
-		modeReader = base64.NewDecoder(base64.StdEncoding, &whitespaceFilteringReader{reader})
+		modeReader = base64.NewDecoder(base64.StdEncoding, NewFilteringReader(reader, []byte{
+			'\r', '\n', '\t', ' ',
+		}))
 	default:
 		return nil, closer, fmt.Errorf("Invalid input mode: %v", opts.InputMode)
 	}
@@ -90,19 +95,33 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 	return fixedReader, closer, nil
 }
 
-// Wraps an io.Reader and ignores/omits whitespace.
-// Very similar to encoding/base64's internal newlineFilteringReader except
-// this also ignores tab and space.
-type whitespaceFilteringReader struct {
+// Wraps an io.Reader and ignores/omits specific supplied bytes (ex: whitespace).
+// Very similar to encoding/base64's internal newlineFilteringReader.
+type FilteringReader struct {
 	wrapped io.Reader
+	// Optional, additional bytes to ignore in addition to whitespace
+	ignoreBytes map[byte]struct{}
 }
 
-func (r whitespaceFilteringReader) Read(p []byte) (int, error) {
+func NewFilteringReader(reader io.Reader, ignore []byte) *FilteringReader {
+	stub := struct{}{} // empty struct takes zero space, used as map value when only need a set.
+	toIgnore := make(map[byte]struct{})
+	// create set of ignored bytes
+	for _, b := range ignore {
+		toIgnore[b] = stub
+	}
+	return &FilteringReader{
+		wrapped:     reader,
+		ignoreBytes: toIgnore,
+	}
+}
+
+func (r FilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
 		offset := 0
 		for i, b := range p[:n] {
-			if b != '\r' && b != '\n' && b != '\t' && b != ' ' {
+			if _, found := r.ignoreBytes[b]; !found {
 				if i != offset {
 					p[offset] = b
 				}
@@ -112,7 +131,7 @@ func (r whitespaceFilteringReader) Read(p []byte) (int, error) {
 		if offset > 0 {
 			return offset, err
 		}
-		// Previous buffer entirely whitespace, read again
+		// Previous buffer entirely ignored bytes, read again
 		n, err = r.wrapped.Read(p)
 	}
 	return n, err
