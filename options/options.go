@@ -32,20 +32,34 @@ type Options struct {
 	Display    DisplayOptions
 }
 
-func parseMode(input string) (IOMode, error) {
-	normInput := strings.ToLower(input)
-	switch normInput {
+func parseInputMode(mode string) (IOMode, error) {
+	normMode := strings.ToLower(mode)
+	switch normMode {
 	case "raw", "r":
 		return Raw, nil
 	case "hex", "h":
 		return Hex, nil
 	case "base64", "b64", "b":
 		return Base64, nil
-	// TOOD: not supporting display input?
-	// case "display", "d":
-	// 	return Display, nil
+	// NOTE: not valid input modes: Display
 	default:
-		return -1, fmt.Errorf("Not a valid mode: %q.", input)
+		return -1, fmt.Errorf("Not a valid input mode: %q.", mode)
+	}
+}
+
+func parseOutputMode(mode string) (IOMode, error) {
+	normMode := strings.ToLower(mode)
+	switch normMode {
+	case "raw", "r":
+		return Raw, nil
+	case "hex", "h":
+		return Hex, nil
+	case "base64", "b64", "b":
+		return Base64, nil
+	case "display", "d":
+		return Display, nil
+	default:
+		return -1, fmt.Errorf("Not a valid output mode: %q.", mode)
 	}
 }
 
@@ -62,7 +76,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
 	}
 
 	if len(inMode) > 0 {
-		if mode, err := parseMode(inMode); err == nil {
+		if mode, err := parseInputMode(inMode); err == nil {
 			opts.InputMode = mode
 		} else {
 			return opts, fmt.Errorf("Invalid --input/-i value. %v ", err)
@@ -77,7 +91,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
 	}
 
 	if len(outMode) > 0 {
-		if mode, err := parseMode(outMode); err == nil {
+		if mode, err := parseOutputMode(outMode); err == nil {
 			opts.OutputMode = mode
 		} else {
 			return opts, fmt.Errorf("Invalid --output/-o value. %v ", err)

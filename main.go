@@ -23,15 +23,16 @@ func main() {
 	// or copy+paste of hax output.
 	var inMode string
 	flag.StringVar(&inMode, "input", "", "Input mode. See I/O Modes section for options.")
-	flag.StringVar(&inMode, "i", "", "")
+	flag.StringVar(&inMode, "in", "", "")
+
 	var outMode string
 	flag.StringVar(&outMode, "output", "", "Output mode. (defaults to hexeditor formatted output).")
-	flag.StringVar(&outMode, "o", "", "")
+	flag.StringVar(&outMode, "out", "", "")
 
 	// Optional input limit/offset. This can be in decimal or hex.
 	var offset string
 	flag.StringVar(&offset, "offset", "", "Input offset in bytes (default 0).")
-	flag.StringVar(&offset, "n", "", "")
+	flag.StringVar(&offset, "o", "", "")
 	var limit string
 	flag.StringVar(&limit, "limit", "", "Input limit in bytes (default no limit).")
 	flag.StringVar(&limit, "l", "", "")
