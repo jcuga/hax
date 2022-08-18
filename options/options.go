@@ -2,6 +2,7 @@ package options
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -117,7 +118,11 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
 			return opts, fmt.Errorf(
 				"Invalid --limit/-l value %q, must be >= 0 ", limit)
 		}
-		opts.Limit = parsedLimit
+		if parsedLimit == 0 {
+			opts.Limit = math.MaxInt64
+		} else {
+			opts.Limit = parsedLimit
+		}
 	} else {
 		return opts, fmt.Errorf(
 			"Failed to parse --limit/-l value %q, error: %v", limit, err)

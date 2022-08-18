@@ -12,6 +12,10 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
+const (
+	readerBufferSize = 1024 * 10
+)
+
 // Gets variety of input (stdin, string, file) with format (base64, hex, raw)
 // and returns as a FixedLengthBufferedReader which will get n bytes
 // for each read([n]byte) call aside from the least/EOF one which may return
@@ -77,7 +81,7 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 
 	if opts.Offset > 0 && !fileOffsetOptimization {
 		// Lazy seek--just read enough data and discard.
-		seekBufSize := int64(1024 * 10)
+		seekBufSize := int64(readerBufferSize)
 		curOffset := int64(0)
 		fill := make([]byte, seekBufSize)
 		for curOffset != opts.Offset {
@@ -158,7 +162,7 @@ type FixedLengthBufferedReader struct {
 func NewFixedLengthBufferedReader(reader io.Reader) *FixedLengthBufferedReader {
 	return &FixedLengthBufferedReader{
 		wrapped:      reader,
-		buf:          make([]byte, 1024*10),
+		buf:          make([]byte, readerBufferSize),
 		bufFilledLen: 0,
 		bufIndex:     0,
 	}
