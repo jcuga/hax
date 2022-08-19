@@ -54,9 +54,11 @@ func outputRaw(reader *input.FixedLengthBufferedReader, isPipe bool, opts option
 }
 
 // TODO: move to common/util module if needed elsewhere
+// NOTE: allowing printable chars plus 0x07-0x0D (\a thru \r)
+// TODO: technically, non printable is <32 and >126, but newline/tab/CR also fine as non "raw" binary files will have these.
 func containsNonPrintable(data []byte) bool {
 	for _, b := range data {
-		if b < 32 || b > 126 {
+		if b > 126 || (b < 32 && !(b >= 0x07 && b <= 0x0D)) {
 			return true
 		}
 	}
