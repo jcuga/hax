@@ -48,10 +48,13 @@ func main() {
 	flag.StringVar(&pageSize, "p", "4", "")
 	var alwaysPretty bool
 	flag.BoolVar(&alwaysPretty, "pretty", false, "Always pretty-print/style output.")
-	flag.BoolVar(&alwaysPretty, "y", false, "")
 	var quiet bool
 	flag.BoolVar(&quiet, "no-ascii", false, "Skip outputting ascii below each row of bytes.")
 	flag.BoolVar(&quiet, "q", false, "")
+
+	var yes bool
+	flag.BoolVar(&yes, "yes", false, "Auto-answer yes to any prompts.") // TODO: remember to add to custom usage output.
+	flag.BoolVar(&yes, "y", false, "")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output() // may be os.Stderr - but not necessarily
@@ -115,7 +118,7 @@ func main() {
 	}
 
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
-		offset, limit, colWidth, pageSize, alwaysPretty, quiet)
+		offset, limit, colWidth, pageSize, alwaysPretty, quiet, yes)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

@@ -31,6 +31,8 @@ type Options struct {
 	Offset     int64
 	Limit      int64
 	Display    DisplayOptions
+	// Yes is whether to auto-answer y/yes to any prompts
+	Yes bool
 }
 
 func parseInputMode(mode string) (IOMode, error) {
@@ -65,7 +67,7 @@ func parseOutputMode(mode string) (IOMode, error) {
 }
 
 func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
-	pageSize string, alwaysPretty, quiet bool) (Options, error) {
+	pageSize string, alwaysPretty, quiet, yes bool) (Options, error) {
 
 	opts := Options{
 		Filename:  inFilename,
@@ -74,6 +76,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
 			Pretty:  alwaysPretty,
 			NoAscii: quiet,
 		},
+		Yes: yes,
 	}
 
 	if len(inMode) > 0 {

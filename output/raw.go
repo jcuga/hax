@@ -36,10 +36,40 @@ func outputRaw(reader *input.FixedLengthBufferedReader, isPipe bool, opts option
 			break
 		}
 
+		// For TTY/terminal (ie not a pipe) output, warn and ask if first batch looks like non-printables
+		if !isPipe && bytesWritten == 0 && containsNonPrintable(buf[:n]) {
+			if !opts.Yes {
+				if !promptForYes("Output to character device contains non-printable bytes.") { // TODO: better wording--see curl for example? IIRC does similar.
+					os.Exit(0) // TODO: or a non-zero, distinct exit code? see how other common tools do it too.
+				}
+			}
+		}
+
 		os.Stdout.Write(buf[0:n])
 		bytesWritten += int64(n)
 		if bytesWritten >= opts.Limit {
 			return
 		}
 	}
+}
+
+// TODO: move to common/util module if needed elsewhere
+func containsNonPrintable(data []byte) bool {
+	for _, b := range data {
+		if b < 32 || b > 126 {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO: move to common/util module if needed elsewhere
+func promptForYes(msg string) bool {
+	fmt.Fprintf(os.Stderr, "%s Are you sure? (Y/y): ", msg)
+	var answer string
+	fmt.Scanln(&answer)
+	if len(answer) > 0 && (answer[0] == 'y' || answer[0] == 'Y') {
+		return true
+	}
+	return false
 }
