@@ -39,7 +39,7 @@ func outputRaw(reader *input.FixedLengthBufferedReader, isPipe bool, opts option
 		// For TTY/terminal (ie not a pipe) output, warn and ask if first batch looks like non-printables
 		if !isPipe && bytesWritten == 0 && containsNonPrintable(buf[:n]) {
 			if !opts.Yes {
-				if !promptForYes("Output to character device contains non-printable bytes.") { // TODO: better wording--see curl for example? IIRC does similar.
+				if !promptForYes("Output may be a binary file.  See it anyway?") { // TODO: better wording--see curl for example? IIRC does similar.
 					os.Exit(0) // TODO: or a non-zero, distinct exit code? see how other common tools do it too.
 				}
 			}
@@ -67,7 +67,7 @@ func containsNonPrintable(data []byte) bool {
 
 // TODO: move to common/util module if needed elsewhere
 func promptForYes(msg string) bool {
-	fmt.Fprintf(os.Stderr, "%s Are you sure? (Y/y): ", msg)
+	fmt.Fprintf(os.Stderr, "%s (y/n): ", msg)
 	var answer string
 	fmt.Scanln(&answer)
 	if len(answer) > 0 && (answer[0] == 'y' || answer[0] == 'Y') {
