@@ -9,20 +9,16 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-const (
-	rawOutBufferSize = 1024 * 100 // TODO: 100kb buffer--adequate?
-)
-
 func outputRaw(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	// TODO: if isPipe, prompt first? cmdline -y option?
-	buf := make([]byte, rawOutBufferSize)
-
+	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0)
+
 	for {
 		var n int
 		var err error
 		// only read up to limit many bytes:
-		if opts.Limit-bytesWritten < rawOutBufferSize {
+		if opts.Limit-bytesWritten < outBufferSize {
 			n, err = reader.Read(buf[:opts.Limit-bytesWritten])
 		} else {
 			n, err = reader.Read(buf)
