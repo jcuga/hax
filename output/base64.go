@@ -13,7 +13,12 @@ import (
 func outputBase64(reader *input.FixedLengthBufferedReader, opts options.Options) {
 	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the base64 output fills.
-	encoder := base64.NewEncoder(base64.StdEncoding, os.Stdout)
+	var outWriter io.Writer
+	outWriter = os.Stdout
+	if opts.Display.Width > 0 { // wrap to add newlines every width bytes
+		outWriter, _ = NewFixedWidthWriter(outWriter, opts.Display.Width)
+	}
+	encoder := base64.NewEncoder(base64.StdEncoding, outWriter)
 	defer encoder.Close() // needed to flush/encode any final, partial block of data
 
 	for {

@@ -13,7 +13,13 @@ import (
 func outputHex(reader *input.FixedLengthBufferedReader, opts options.Options) {
 	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
-	encoder := hex.NewEncoder(os.Stdout)
+
+	var outWriter io.Writer
+	outWriter = os.Stdout
+	if opts.Display.Width > 0 { // wrap to add newlines every width bytes
+		outWriter, _ = NewFixedWidthWriter(outWriter, opts.Display.Width)
+	}
+	encoder := hex.NewEncoder(outWriter)
 
 	for {
 		var n int

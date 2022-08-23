@@ -41,8 +41,8 @@ func main() {
 	var colWidth string
 	// TODO: don't have a default, then default based on output mode if not specified.
 	// TODO: update -h/usage output to reflect this change.
-	flag.StringVar(&colWidth, "width", "16", "Column Width: Num bytes per row (default: 16).")
-	flag.StringVar(&colWidth, "w", "16", "")
+	flag.StringVar(&colWidth, "width", "", "Column Width: Num bytes per row.")
+	flag.StringVar(&colWidth, "w", "", "")
 	var pageSize string
 	flag.StringVar(&pageSize, "page", "4", "Display page breaks every N (default 4, 0=never).")
 	flag.StringVar(&pageSize, "p", "4", "")

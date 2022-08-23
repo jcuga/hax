@@ -131,15 +131,24 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
 			"Failed to parse --limit/-l value %q, error: %v", limit, err)
 	}
 
-	if parsedWidth, err := parseHexOrDec(colWidth); err == nil {
-		if parsedWidth < 1 || parsedWidth > 1024 {
-			return opts, fmt.Errorf(
-				"Invalid --width/-w value %q, must be 1-1024 ", colWidth)
+	if colWidth == "" {
+		if opts.OutputMode == Display {
+			opts.Display.Width = 16
+		} else {
+			// NOTE: widht of 0 implies infinite/no width limit on output
+			opts.Display.Width = 0
 		}
-		opts.Display.Width = int(parsedWidth)
 	} else {
-		return opts, fmt.Errorf(
-			"Failed to parse --width/-w value %q, error: %v", colWidth, err)
+		if parsedWidth, err := parseHexOrDec(colWidth); err == nil {
+			if parsedWidth < 1 || parsedWidth > 1024 {
+				return opts, fmt.Errorf(
+					"Invalid --width/-w value %q, must be 1-1024 ", colWidth)
+			}
+			opts.Display.Width = int(parsedWidth)
+		} else {
+			return opts, fmt.Errorf(
+				"Failed to parse --width/-w value %q, error: %v", colWidth, err)
+		}
 	}
 
 	if parsedPage, err := parseHexOrDec(pageSize); err == nil {
