@@ -18,6 +18,7 @@ const (
 
 type DisplayOptions struct {
 	Width    int
+	SubWidth int // add space after every SubWidth bytes
 	PageSize int
 	Pretty   bool
 	NoAscii  bool
@@ -66,7 +67,7 @@ func parseOutputMode(mode string) (IOMode, error) {
 	}
 }
 
-func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
+func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubWidth,
 	pageSize string, alwaysPretty, quiet, yes bool) (Options, error) {
 
 	opts := Options{
@@ -150,6 +151,21 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth,
 		} else {
 			return opts, fmt.Errorf(
 				"Failed to parse --width/-w value %q, error: %v", colWidth, err)
+		}
+	}
+
+	if colSubWidth == "" {
+		opts.Display.SubWidth = 0
+	} else {
+		if parsedSubWidth, err := parseHexOrDec(colSubWidth); err == nil {
+			if parsedSubWidth < 0 || (opts.Display.Width > 0 && parsedSubWidth > int64(opts.Display.Width)) {
+				return opts, fmt.Errorf(
+					"Invalid --sub-width/-ww value %q, must be 0 to --width (%d) ", colSubWidth, opts.Display.Width)
+			}
+			opts.Display.SubWidth = int(parsedSubWidth)
+		} else {
+			return opts, fmt.Errorf(
+				"Failed to parse --sub-width/-ww value %q, error: %v", colSubWidth, err)
 		}
 	}
 

@@ -43,6 +43,9 @@ func main() {
 	// TODO: update -h/usage output to reflect this change.
 	flag.StringVar(&colWidth, "width", "", "Column Width: Num bytes per row.")
 	flag.StringVar(&colWidth, "w", "", "")
+	var colSubWidth string
+	flag.StringVar(&colSubWidth, "sub-width", "", "Column sub-width: add space after every N bytes.")
+	flag.StringVar(&colSubWidth, "ww", "", "")
 	var pageSize string
 	flag.StringVar(&pageSize, "page", "4", "Display page breaks every N (default 4, 0=never).")
 	flag.StringVar(&pageSize, "p", "4", "")
@@ -83,6 +86,8 @@ func main() {
 		fmt.Fprintf(w, "\nOptions for when output mode is display:\n")
 		f = flag.Lookup("width")
 		fmt.Fprintf(w, "\t-w, --%s\t%s\n", f.Name, f.Usage)
+		f = flag.Lookup("sub-width")
+		fmt.Fprintf(w, "\t-ww, --%s\t%s\n", f.Name, f.Usage)
 		f = flag.Lookup("page")
 		fmt.Fprintf(w, "\t-p, --%s\t%s\n", f.Name, f.Usage)
 		f = flag.Lookup("no-ascii")
@@ -118,7 +123,7 @@ func main() {
 	}
 
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
-		offset, limit, colWidth, pageSize, alwaysPretty, quiet, yes)
+		offset, limit, colWidth, colSubWidth, pageSize, alwaysPretty, quiet, yes)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

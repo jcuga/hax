@@ -12,6 +12,7 @@ import (
 
 func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	showPretty := !isPipe || opts.Display.Pretty
+	subWidthPadding := "  " // if opts.Display.SubWidth set, this amount of whitespace to pad between elements within row
 	count := int64(0)
 	row := int64(0)
 	offsetPadding := int64(0)
@@ -61,6 +62,10 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 			fmt.Println("")
 			fmt.Printf("%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
+				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
+					fmt.Printf("%s", subWidthPadding)
+				}
+
 				if showPretty {
 					fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
 				} else {
@@ -92,12 +97,18 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 
 		// Print hex
 		for i := 0; i < m; i++ {
+			if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
+				fmt.Printf("%s", subWidthPadding)
+			}
 			fmt.Printf("%02X ", buf[i])
 		}
 		fmt.Printf("\n%15s%s", "", offsetPaddingWhitespace)
 		if !opts.Display.NoAscii {
 			// Print ascii
 			for i := 0; i < m; i++ {
+				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
+					fmt.Printf("%s", subWidthPadding)
+				}
 				// printable ascii only
 				var out string
 				if buf[i] >= 32 && buf[i] <= 126 {
@@ -135,6 +146,10 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 			fmt.Println("")
 			fmt.Printf("%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
+				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
+					fmt.Printf("%s", subWidthPadding)
+				}
+
 				if showPretty {
 					fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
 				} else {
