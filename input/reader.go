@@ -25,7 +25,7 @@ func NewFilteringReader(reader io.Reader, ignore []byte) *FilteringReader {
 	}
 }
 
-func (r FilteringReader) Read(p []byte) (int, error) {
+func (r *FilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
 		offset := 0

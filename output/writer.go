@@ -23,7 +23,7 @@ func NewFixedWidthWriter(writer io.Writer, width int) (*FixedWidthWriter, error)
 	}, nil
 }
 
-func (w FixedWidthWriter) Write(p []byte) (n int, err error) {
+func (w *FixedWidthWriter) Write(p []byte) (n int, err error) {
 	remaining := len(p)
 	for {
 		if remaining == 0 {
@@ -39,8 +39,13 @@ func (w FixedWidthWriter) Write(p []byte) (n int, err error) {
 			min = remaining
 		}
 		offset := len(p) - remaining
-		// TODO: sanity check n and err from w.wrapped.Write calls!
-		w.wrapped.Write(p[offset : offset+min])
+		n, err := w.wrapped.Write(p[offset : offset+min])
+		if err != nil {
+			return n, err
+		}
+		if n != min {
+			return n, fmt.Errorf("Unexpected write result: %d, expected: %d", n, min)
+		}
 		remaining -= min
 		w.counter += min
 	}
