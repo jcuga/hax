@@ -14,11 +14,11 @@ const (
 func Output(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) error {
 	switch opts.OutputMode {
 	case options.Base64:
-		outputBase64(reader, opts)
+		outputBase64(reader, isPipe, opts)
 	case options.Display:
 		displayHex(reader, isPipe, opts)
 	case options.Hex:
-		outputHex(reader, opts)
+		outputHex(reader, isPipe, opts)
 	case options.Raw:
 		outputRaw(reader, isPipe, opts)
 	default:

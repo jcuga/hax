@@ -10,7 +10,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputHex(reader *input.FixedLengthBufferedReader, opts options.Options) {
+func outputHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -43,7 +43,11 @@ func outputHex(reader *input.FixedLengthBufferedReader, opts options.Options) {
 
 		bytesWritten += int64(n)
 		if bytesWritten >= opts.Limit {
-			return
+			break
 		}
+	}
+	if !isPipe {
+		// add newline to end of terminal output
+		fmt.Fprintf(os.Stdout, "\n")
 	}
 }

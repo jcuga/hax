@@ -140,7 +140,7 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 			break
 		}
 
-		// NOTE: checking && m == opts.Display.Width to avoid printing after a partial line as taht implies the subsequent
+		// NOTE: checking && m == opts.Display.Width to avoid printing after a partial line as that implies the subsequent
 		// read will be EOF.
 		if opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == (int64(opts.Display.PageSize)-1) && m == opts.Display.Width {
 			fmt.Println("")

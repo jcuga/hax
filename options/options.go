@@ -135,8 +135,6 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 	if colWidth == "" {
 		if opts.OutputMode == Display {
 			opts.Display.Width = 16
-		} else if opts.OutputMode == Base64 {
-			opts.Display.Width = 76
 		} else {
 			// NOTE: widht of 0 implies infinite/no width limit on output
 			opts.Display.Width = 0
