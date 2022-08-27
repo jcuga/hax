@@ -9,7 +9,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputRaw(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	// TODO: if isPipe, prompt first? cmdline -y option?
 	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0)
@@ -41,7 +41,7 @@ func outputRaw(reader *input.FixedLengthBufferedReader, isPipe bool, opts option
 			}
 		}
 
-		os.Stdout.Write(buf[0:n])
+		writer.Write(buf[0:n])
 		bytesWritten += int64(n)
 		if bytesWritten >= opts.Limit {
 			return

@@ -147,7 +147,7 @@ func main() {
 	}
 
 	// TODO: do this only if there's no other cmd/func (ex: interpret as numeric, insert, replace, etc)
-	if err := output.Output(inReader, isPipe, opts); err != nil {
+	if err := output.Output(os.Stdout, inReader, isPipe, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

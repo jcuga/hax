@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
@@ -11,16 +12,20 @@ const (
 	outBufferSize = 1024 * 100 // TODO: 100kb buffer--adequate?
 )
 
-func Output(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) error {
+func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) error {
 	switch opts.OutputMode {
 	case options.Base64:
-		outputBase64(reader, isPipe, opts)
+		outputBase64(writer, reader, isPipe, opts)
 	case options.Display:
-		displayHex(reader, isPipe, opts)
+		displayHex(writer, reader, isPipe, opts)
 	case options.Hex:
-		outputHex(reader, isPipe, opts)
+		outputHex(writer, reader, isPipe, opts)
+	case options.HexString:
+		outputHexString(writer, reader, isPipe, opts)
+	// case options.HexList:
+	// 	outputHexList(reader, isPipe, opts)
 	case options.Raw:
-		outputRaw(reader, isPipe, opts)
+		outputRaw(writer, reader, isPipe, opts)
 	default:
 		return fmt.Errorf("Unsupported or not implemented output mode: %v", opts.OutputMode)
 	}

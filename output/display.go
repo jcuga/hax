@@ -10,7 +10,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	showPretty := !isPipe || opts.Display.Pretty
 	subWidthPadding := "  " // if opts.Display.SubWidth set, this amount of whitespace to pad between elements within row
 	count := int64(0)
@@ -51,7 +51,7 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 
 		if n < 1 {
 			if row == 0 {
-				fmt.Printf("<NO DATA>\n")
+				fmt.Fprintf(writer, "<NO DATA>\n")
 				os.Exit(3) // TODO: document return codes
 			}
 
@@ -59,20 +59,20 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 		}
 
 		if row == 0 {
-			fmt.Println("")
-			fmt.Printf("%15s", "")
+			fmt.Fprintf(writer, "\n")
+			fmt.Fprintf(writer, "%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
 				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
-					fmt.Printf("%s", subWidthPadding)
+					fmt.Fprintf(writer, "%s", subWidthPadding)
 				}
 
 				if showPretty {
-					fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
+					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
 				} else {
-					fmt.Printf("%2X ", i)
+					fmt.Fprintf(writer, "%2X ", i)
 				}
 			}
-			fmt.Println("")
+			fmt.Fprintf(writer, "\n")
 
 		}
 
@@ -90,24 +90,24 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 			offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding))
 		}
 		if showPretty {
-			fmt.Printf("\033[36m%13X: \033[0m%s", rowStart, offsetPaddingWhitespace)
+			fmt.Fprintf(writer, "\033[36m%13X: \033[0m%s", rowStart, offsetPaddingWhitespace)
 		} else {
-			fmt.Printf("%13X: %s", rowStart, offsetPaddingWhitespace)
+			fmt.Fprintf(writer, "%13X: %s", rowStart, offsetPaddingWhitespace)
 		}
 
 		// Print hex
 		for i := 0; i < m; i++ {
 			if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
-				fmt.Printf("%s", subWidthPadding)
+				fmt.Fprintf(writer, "%s", subWidthPadding)
 			}
-			fmt.Printf("%02X ", buf[i])
+			fmt.Fprintf(writer, "%02X ", buf[i])
 		}
-		fmt.Printf("\n%15s%s", "", offsetPaddingWhitespace)
+		fmt.Fprintf(writer, "\n%15s%s", "", offsetPaddingWhitespace)
 		if !opts.Display.NoAscii {
 			// Print ascii
 			for i := 0; i < m; i++ {
 				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
-					fmt.Printf("%s", subWidthPadding)
+					fmt.Fprintf(writer, "%s", subWidthPadding)
 				}
 				// printable ascii only
 				var out string
@@ -129,13 +129,13 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 				// Don't add bold/colored output if this is piped to
 				// another command like less as that will not display nicely.
 				if showPretty {
-					fmt.Printf("%2s ", fmt.Sprintf("\033[32m%2s\033[0m", out))
+					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("\033[32m%2s\033[0m", out))
 				} else {
-					fmt.Printf("%2s ", fmt.Sprintf("%2s", out))
+					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("%2s", out))
 				}
 			}
 		}
-		fmt.Println("")
+		fmt.Fprintf(writer, "\n")
 		if count >= opts.Limit {
 			break
 		}
@@ -143,22 +143,22 @@ func displayHex(reader *input.FixedLengthBufferedReader, isPipe bool, opts optio
 		// NOTE: checking && m == opts.Display.Width to avoid printing after a partial line as that implies the subsequent
 		// read will be EOF.
 		if opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == (int64(opts.Display.PageSize)-1) && m == opts.Display.Width {
-			fmt.Println("")
-			fmt.Printf("%15s", "")
+			fmt.Fprintf(writer, "\n")
+			fmt.Fprintf(writer, "%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
 				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
-					fmt.Printf("%s", subWidthPadding)
+					fmt.Fprintf(writer, "%s", subWidthPadding)
 				}
 
 				if showPretty {
-					fmt.Printf("%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
+					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
 				} else {
-					fmt.Printf("%2X ", i)
+					fmt.Fprintf(writer, "%2X ", i)
 				}
 			}
-			fmt.Println("")
+			fmt.Fprintf(writer, "\n")
 		}
 		row += 1
 	}
-	fmt.Println("")
+	fmt.Fprintf(writer, "\n")
 }

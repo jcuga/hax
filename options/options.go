@@ -12,6 +12,8 @@ type IOMode int
 const (
 	Raw IOMode = iota
 	Hex
+	HexString // Escaped hex that can be used in a string literal, ex: "\xAB\xCD\xEF"
+	HexList   // List of hex bytes that can be used in an array literal: "0xAB, 0xCD, 0xEF"
 	Base64
 	Display
 )
@@ -58,6 +60,10 @@ func parseOutputMode(mode string) (IOMode, error) {
 		return Raw, nil
 	case "hex", "h":
 		return Hex, nil
+	case "hex-string", "hex-str", "hs", "str", "s":
+		return HexString, nil
+	case "hex-list", "hl", "list", "l":
+		return HexList, nil
 	case "base64", "b64", "b":
 		return Base64, nil
 	case "display", "d":
