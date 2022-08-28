@@ -19,8 +19,8 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	outWriter = writer
 	if opts.Display.Width > 0 { // wrap to add newlines every width bytes
 		// each byte uses 2 chars:
-		width := opts.Display.Width * 2
-		outWriter, _ = NewFixedWidthWriter(outWriter, width)
+		outWidth := opts.Display.Width * 2
+		outWriter, _ = NewFixedWidthWriter(outWriter, outWidth)
 	}
 	encoder := hex.NewEncoder(outWriter)
 
@@ -55,20 +55,28 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	}
 }
 
-// TODO: refactor to accept prefix/suffix and use for both str and list funcs
-func outputHexString(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
 	var outWriter io.Writer
 	outWriter = writer
+	var outWidth int
 	if opts.Display.Width > 0 { // wrap to add newlines every width bytes
-		// each byte takes up 4 chars: len("\xAB") == 4
-		width := opts.Display.Width * 4
-		outWriter, _ = NewFixedWidthWriter(outWriter, width)
+		if opts.OutputMode == options.HexString {
+			// each byte takes up 4 chars: len("\xAB") == 4
+			outWidth = opts.Display.Width * 4
+		} else { // options.HexList
+			// each byte takes up 6 chars: len("0xAB, ") == 6
+			outWidth = opts.Display.Width * 6
+		}
+		outWriter, _ = NewFixedWidthWriter(outWriter, outWidth)
 	}
 
 	bytesBuf := bytes.Buffer{}
+	bytesBuf.Grow(outWidth) // pre-allocate if needed, on subsequent calls, shouldn't allocate
+	firstByte := true       // decides if ", " included in front of hex list items
+
 	for {
 		var n int
 		var err error
@@ -88,9 +96,6 @@ func outputHexString(writer io.Writer, reader *input.FixedLengthBufferedReader, 
 		}
 
 		bytesBuf.Reset()
-		bytesBuf.Grow(n) // pre-allocate if needed, on subsequent calls, shoudln't allocate
-
-		// TODO: make this faster -- update: faster now... but should be able to get 10-100x better still...
 		for i := 0; i < n; i++ {
 			highByte := buf[i] >> 4
 			if highByte < 10 {
@@ -104,7 +109,17 @@ func outputHexString(writer io.Writer, reader *input.FixedLengthBufferedReader, 
 			} else {
 				lowByte = 'A' + (lowByte - 10) // gets char values 'A' thru 'F'
 			}
-			bytesBuf.Write([]byte{'\\', 'x', byte(highByte), lowByte})
+
+			if opts.OutputMode == options.HexString {
+				bytesBuf.Write([]byte{'\\', 'x', byte(highByte), lowByte})
+			} else { // options.HexList
+				if firstByte {
+					bytesBuf.Write([]byte{'0', 'x', byte(highByte), lowByte})
+					firstByte = false
+				} else {
+					bytesBuf.Write([]byte{',', ' ', '0', 'x', byte(highByte), lowByte})
+				}
+			}
 		}
 		outWriter.Write(bytesBuf.Bytes())
 

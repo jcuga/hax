@@ -60,9 +60,9 @@ func parseOutputMode(mode string) (IOMode, error) {
 		return Raw, nil
 	case "hex", "h":
 		return Hex, nil
-	case "hex-string", "hex-str", "hs", "str", "s":
+	case "hex-string", "hex-str", "hexstr", "hs", "str", "s":
 		return HexString, nil
-	case "hex-list", "hl", "list", "l":
+	case "hex-list", "hexlist", "hl", "list", "l":
 		return HexList, nil
 	case "base64", "b64", "b":
 		return Base64, nil

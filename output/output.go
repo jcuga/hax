@@ -21,9 +21,9 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bo
 	case options.Hex:
 		outputHex(writer, reader, isPipe, opts)
 	case options.HexString:
-		outputHexString(writer, reader, isPipe, opts)
-	// case options.HexList:
-	// 	outputHexList(reader, isPipe, opts)
+		outputHexStringOrList(writer, reader, isPipe, opts)
+	case options.HexList:
+		outputHexStringOrList(writer, reader, isPipe, opts)
 	case options.Raw:
 		outputRaw(writer, reader, isPipe, opts)
 	default:
