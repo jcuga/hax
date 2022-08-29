@@ -67,7 +67,7 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 		// Wrap in a reader that filters out whitespace.
 		// Now also ignoring "\x" to support byte literal strings like: "\xaa\xbb\xcc\xdd"
 		modeReader = hex.NewDecoder(NewFilteringReader(reader, []byte{
-			'\r', '\n', '\t', ' ', '\\', 'x',
+			'\r', '\n', '\t', ' ', ',', '\\', 'x',
 		}))
 	case options.Base64:
 		modeReader = base64.NewDecoder(base64.StdEncoding, NewFilteringReader(reader, []byte{

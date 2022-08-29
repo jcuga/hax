@@ -54,11 +54,10 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 				fmt.Fprintf(writer, "<NO DATA>\n")
 				os.Exit(3) // TODO: document return codes
 			}
-
 			break
 		}
 
-		if row == 0 {
+		if row == 0 || (opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == int64(0)) {
 			fmt.Fprintf(writer, "\n")
 			fmt.Fprintf(writer, "%15s", "")
 			for i := 0; i < opts.Display.Width; i++ {
@@ -81,8 +80,8 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 			// truncate output of current buffer to not exceed limit
 			m = int(opts.Limit - count) // TODO: fix this as only supports int not int64
 		}
-		count += int64(n)
 
+		count += int64(n)
 		rowStart := row*int64(opts.Display.Width) + (opts.Offset - offsetPadding)
 		offsetPaddingWhitespace := ""
 		if row == 0 && offsetPadding > 0 {
@@ -140,24 +139,6 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 			break
 		}
 
-		// NOTE: checking && m == opts.Display.Width to avoid printing after a partial line as that implies the subsequent
-		// read will be EOF.
-		if opts.Display.PageSize > 0 && row%int64(opts.Display.PageSize) == (int64(opts.Display.PageSize)-1) && m == opts.Display.Width {
-			fmt.Fprintf(writer, "\n")
-			fmt.Fprintf(writer, "%15s", "")
-			for i := 0; i < opts.Display.Width; i++ {
-				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
-					fmt.Fprintf(writer, "%s", subWidthPadding)
-				}
-
-				if showPretty {
-					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
-				} else {
-					fmt.Fprintf(writer, "%2X ", i)
-				}
-			}
-			fmt.Fprintf(writer, "\n")
-		}
 		row += 1
 	}
 	fmt.Fprintf(writer, "\n")
