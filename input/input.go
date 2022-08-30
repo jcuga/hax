@@ -62,13 +62,22 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 	case options.Raw:
 		// take as-is:
 		modeReader = reader
+	case options.HexString:
+		fallthrough // same filtering reader as generic hex input
 	case options.Hex:
 		// The std hex decoder expects only 2-digit hex chars, no whitespace.
-		// Wrap in a reader that filters out whitespace.
-		// Now also ignoring "\x" to support byte literal strings like: "\xaa\xbb\xcc\xdd"
+		// Wrap in a reader that filters out whitespace, newlines, and "\x".
 		modeReader = hex.NewDecoder(NewFilteringReader(reader, []byte{
-			'\r', '\n', '\t', ' ', ',', '\\', 'x',
+			'\r', '\n', '\t', ' ', '\\', 'x',
 		}))
+	case options.HexList:
+		// Wrapped reader to ignore whitespace, 'x', '\', ',' as well as skipping
+		// the leading '0' from '0xAA'.
+		modeReader = hex.NewDecoder(NewFilteringSkipModNReader(reader, []byte{
+			'\r', '\n', '\t', ' ', ',', '\\', 'x',
+		},
+			3)) // NOTE: 3 arg is to skip every unignored-count % 3 bytes to ignore the '0' from "0xAA"
+		// which will be filterd to just "0AA".
 	case options.Base64:
 		modeReader = base64.NewDecoder(base64.StdEncoding, NewFilteringReader(reader, []byte{
 			'\r', '\n', '\t', ' ',

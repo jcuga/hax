@@ -10,6 +10,13 @@ type FilteringReader struct {
 	wrapped io.Reader
 	// Optional, additional bytes to ignore in addition to whitespace
 	ignoreBytes map[byte]struct{}
+	// Tracks number of unignored bytes read out.
+	numBytesNotIgnored int
+	// Optionally (if > 0) ignore otherwise un-ignored byte every modN==0.
+	// Used to skip '0' zero chars on hex input that has "0xAA, 0xBB, 0xCC" by
+	// Ignoring whitespace and 'x' leaving "0AA0BB0CC" in which case we'll need
+	// to ignore unignored bytes at index 0, 3, 6, ... etc.
+	skipEveryModN int
 }
 
 func NewFilteringReader(reader io.Reader, ignore []byte) *FilteringReader {
@@ -25,16 +32,28 @@ func NewFilteringReader(reader io.Reader, ignore []byte) *FilteringReader {
 	}
 }
 
+func NewFilteringSkipModNReader(reader io.Reader, ignore []byte, n int) *FilteringReader {
+	r := NewFilteringReader(reader, ignore)
+	r.skipEveryModN = n
+	return r
+}
+
 func (r *FilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
 		offset := 0
 		for i, b := range p[:n] {
 			if _, found := r.ignoreBytes[b]; !found {
-				if i != offset {
-					p[offset] = b
+				if r.skipEveryModN > 0 && r.numBytesNotIgnored%r.skipEveryModN == 0 {
+					// Ignore.  In practice, this is just a hacky fix for ignoring the "0" from "0xAA"
+					// since we can't simply filter all zeros.
+				} else {
+					if i != offset {
+						p[offset] = b
+					}
+					offset++
 				}
-				offset++
+				r.numBytesNotIgnored++
 			}
 		}
 		if offset > 0 {
@@ -54,7 +73,7 @@ func (r *FilteringReader) Read(p []byte) (int, error) {
 // call unless the EOF has been reached. Client code can then request fixed
 // size chunks and receive full data with the exception of the last chunk
 // of data in the underlying reader. This helps allow output.displayHex()
-// function to request oen full row of data at a time via a simple Read call.
+// function to request one full row of data at a time via a simple Read call.
 // This may also be useful for other future input formats that may not reliably
 // yield a full buffer of data on Read.
 type FixedLengthBufferedReader struct {
