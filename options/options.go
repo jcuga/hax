@@ -19,11 +19,12 @@ const (
 )
 
 type DisplayOptions struct {
-	Width    int
-	SubWidth int // add space after every SubWidth bytes
-	PageSize int
-	Pretty   bool
-	NoAscii  bool
+	Width          int
+	SubWidth       int // add space after every SubWidth bytes
+	PageSize       int
+	Pretty         bool
+	NoAscii        bool
+	HideZerosBytes bool
 }
 
 type Options struct {
@@ -78,14 +79,15 @@ func parseOutputMode(mode string) (IOMode, error) {
 }
 
 func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubWidth,
-	pageSize string, alwaysPretty, quiet, yes bool) (Options, error) {
+	pageSize string, alwaysPretty, quiet, yes, hideZeros bool) (Options, error) {
 
 	opts := Options{
 		Filename:  inFilename,
 		InputData: inputStr,
 		Display: DisplayOptions{
-			Pretty:  alwaysPretty,
-			NoAscii: quiet,
+			Pretty:         alwaysPretty,
+			NoAscii:        quiet,
+			HideZerosBytes: hideZeros,
 		},
 		Yes: yes,
 	}

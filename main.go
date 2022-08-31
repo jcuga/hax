@@ -59,6 +59,11 @@ func main() {
 	flag.BoolVar(&yes, "yes", false, "Auto-answer yes to any prompts.") // TODO: remember to add to custom usage output.
 	flag.BoolVar(&yes, "y", false, "")
 
+	var hideZeros bool
+	flag.BoolVar(&hideZeros, "no-zeros", false, "Hide/leave-blank all zero bytes in hexedit display.") // TODO: remember to add to custom usage output.
+	flag.BoolVar(&hideZeros, "hide-zeros", false, "")
+	flag.BoolVar(&hideZeros, "hide", false, "")
+
 	flag.Usage = func() {
 		w := flag.CommandLine.Output() // may be os.Stderr - but not necessarily
 		// NOTE: custom stuff before
@@ -123,7 +128,7 @@ func main() {
 	}
 
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
-		offset, limit, colWidth, colSubWidth, pageSize, alwaysPretty, quiet, yes)
+		offset, limit, colWidth, colSubWidth, pageSize, alwaysPretty, quiet, yes, hideZeros)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

@@ -99,7 +99,11 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 			if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
 				fmt.Fprintf(writer, "%s", subWidthPadding)
 			}
-			fmt.Fprintf(writer, "%02X ", buf[i])
+			if buf[i] == 0 && opts.Display.HideZerosBytes {
+				fmt.Fprintf(writer, "   ")
+			} else {
+				fmt.Fprintf(writer, "%02X ", buf[i])
+			}
 		}
 		fmt.Fprintf(writer, "\n%15s%s", "", offsetPaddingWhitespace)
 		if !opts.Display.NoAscii {
