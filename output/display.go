@@ -29,6 +29,12 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 	// the requested size. Thankfully, our cusotm reader will smooth things
 	// out so we always get a full line.
 	buf := make([]byte, opts.Display.Width)
+	wrappedReader := zeroPageOmitter{
+		reader:    reader,
+		lineWidth: opts.Display.Width,
+		pageSize:  opts.Display.PageSize,
+		row:       -1,
+	}
 	for {
 		// pad/indent offset input so row start counts are nice and aligned.
 		// ex: offset 3 --> 3 spaces of padding on first row and row count
@@ -36,10 +42,20 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 		// So for first row of offset data, grab less than normal.
 		var n int
 		var err error
+		var bytesSkipped int
+
 		if row == 0 && offsetPadding > 0 {
-			n, err = reader.Read(buf[:len(buf)-int(offsetPadding)])
+			if opts.Display.OmitZeroPages && opts.Display.PageSize > 0 {
+				n, err, bytesSkipped = wrappedReader.ReadRow(buf[:len(buf)-int(offsetPadding)])
+			} else {
+				n, err = reader.Read(buf[:len(buf)-int(offsetPadding)])
+			}
 		} else {
-			n, err = reader.Read(buf)
+			if opts.Display.OmitZeroPages && opts.Display.PageSize > 0 {
+				n, err, bytesSkipped = wrappedReader.ReadRow(buf)
+			} else {
+				n, err = reader.Read(buf)
+			}
 		}
 
 		if err != nil {
@@ -47,6 +63,17 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 				fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
 				os.Exit(1)
 			}
+		}
+
+		if bytesSkipped > 0 {
+			beforeOffset := row*int64(opts.Display.Width) + (opts.Offset - offsetPadding)
+			row += int64(bytesSkipped / opts.Display.Width)
+			afterOffset := ((row)*int64(opts.Display.Width) + (opts.Offset - offsetPadding)) - 1
+			fmt.Fprintf(writer, "%13X-%X omitted. [%d bytes/%d lines of all zeros]\n", beforeOffset, afterOffset, bytesSkipped, bytesSkipped/opts.Display.Width)
+			if count+int64(bytesSkipped) >= opts.Limit {
+				break
+			}
+			count += int64(bytesSkipped)
 		}
 
 		if n < 1 {
@@ -86,7 +113,11 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 		offsetPaddingWhitespace := ""
 		if row == 0 && offsetPadding > 0 {
 			// NOTE: 3 spaces per offset byte as we have 2 byte hex plus space in between each.
-			offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding))
+			if opts.Display.SubWidth > 0 {
+				offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding)) + strings.Repeat(subWidthPadding, (int(offsetPadding)/opts.Display.SubWidth))
+			} else {
+				offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding))
+			}
 		}
 		if showPretty {
 			fmt.Fprintf(writer, "\033[36m%13X: \033[0m%s", rowStart, offsetPaddingWhitespace)
@@ -96,7 +127,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 
 		// Print hex
 		for i := 0; i < m; i++ {
-			if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
+			if opts.Display.SubWidth > 0 && i > 0 && ((row != 0 && i%opts.Display.SubWidth == 0) || (row == 0 && (i+int(offsetPadding))%opts.Display.SubWidth == 0)) {
 				fmt.Fprintf(writer, "%s", subWidthPadding)
 			}
 			if buf[i] == 0 && opts.Display.HideZerosBytes {
@@ -109,7 +140,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 		if !opts.Display.NoAscii {
 			// Print ascii
 			for i := 0; i < m; i++ {
-				if opts.Display.SubWidth > 0 && i > 0 && i%opts.Display.SubWidth == 0 {
+				if opts.Display.SubWidth > 0 && i > 0 && ((row != 0 && i%opts.Display.SubWidth == 0) || (row == 0 && (i+int(offsetPadding))%opts.Display.SubWidth == 0)) {
 					fmt.Fprintf(writer, "%s", subWidthPadding)
 				}
 				// printable ascii only
@@ -139,6 +170,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 			}
 		}
 		fmt.Fprintf(writer, "\n")
+
 		if count >= opts.Limit {
 			break
 		}
@@ -146,4 +178,91 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 		row += 1
 	}
 	fmt.Fprintf(writer, "\n")
+}
+
+type zeroPageOmitter struct {
+	reader       *input.FixedLengthBufferedReader
+	lineWidth    int // needed? looks like not...
+	pageSize     int
+	row          int64
+	rowBuffer    [][]byte
+	bytesSkipped int
+}
+
+func (z *zeroPageOmitter) ReadRow(buf []byte) (int, error, int) {
+	if len(z.rowBuffer) > 0 {
+		first := z.rowBuffer[0]
+		z.rowBuffer = z.rowBuffer[1:]
+		copy(buf, first)
+		return len(first), nil, 0
+	}
+	n, err := z.reader.Read(buf)
+	z.row++
+	if n > 0 && err == nil && z.row%int64(z.pageSize) == 0 && allZeros(buf[0:n]) {
+		// buffer all zeros and keep reading more. clear per page, increment skip count.
+		// once (if ever) hit non-zero, start returning any buffered followed by nonzeor
+		copied := make([]byte, n)
+		copy(copied, buf[0:n])
+		z.rowBuffer = append(z.rowBuffer, copied) // TODO: need to copy slice here? dito for other places?
+
+		for {
+			n, err := z.reader.Read(buf)
+			z.row++
+
+			if n > 0 && err == nil && allZeros(buf[0:n]) {
+
+				copied := make([]byte, n)
+				copy(copied, buf[0:n])
+				z.rowBuffer = append(z.rowBuffer, copied) // TODO: need to copy slice here? dito for other places?
+
+				if int(z.row%int64(z.pageSize)) == z.pageSize-1 { // buffered a full page--clear first pageSize many from buffer, increment bytes skipped
+					for i := 0; i < z.pageSize; i++ {
+						z.bytesSkipped += len(z.rowBuffer[i])
+					}
+					z.rowBuffer = z.rowBuffer[z.pageSize:]
+				}
+				continue
+			}
+
+			if err != nil && err != io.EOF {
+				return 0, err, 0 // report error, forget about any buffered data...
+			}
+
+			if n == 0 { // reached end, return any bufferd data in order
+				// should have at least one item in buffer since added before for loop...
+				first := z.rowBuffer[0]
+				z.rowBuffer = z.rowBuffer[1:]
+				copy(buf, first)
+				skipped := z.bytesSkipped
+				z.bytesSkipped = 0
+				return len(first), nil, skipped
+			}
+
+			// TODO: is this same as n==0 above? if so, consolidate. NOTE: this appends current data whereas above does not since n==0...
+			// otherwise, non-empty, non-all-zero data
+			// add to buffer and return first buffered item (could be the thign we just added if at page start)
+
+			copied := make([]byte, n)
+			copy(copied, buf[0:n])
+			z.rowBuffer = append(z.rowBuffer, copied) // TODO: need to copy slice here? dito for other places?
+
+			first := z.rowBuffer[0]
+			z.rowBuffer = z.rowBuffer[1:]
+			copy(buf, first)
+			skipped := z.bytesSkipped
+			z.bytesSkipped = 0
+			return len(first), nil, skipped
+		}
+
+	} else {
+		return n, err, 0
+	}
+}
+func allZeros(buf []byte) bool {
+	for _, val := range buf {
+		if val != byte(0) {
+			return false
+		}
+	}
+	return true
 }

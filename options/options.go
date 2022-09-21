@@ -25,6 +25,7 @@ type DisplayOptions struct {
 	Pretty         bool
 	NoAscii        bool
 	HideZerosBytes bool
+	OmitZeroPages  bool
 }
 
 type Options struct {
@@ -78,8 +79,9 @@ func parseOutputMode(mode string) (IOMode, error) {
 	}
 }
 
+// TODO: any error text here needs arg names to update those in main if they've changed during development!
 func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubWidth,
-	pageSize string, alwaysPretty, quiet, yes, hideZeros bool) (Options, error) {
+	pageSize string, alwaysPretty, quiet, yes, hideZeros, omitZeroPages bool) (Options, error) {
 
 	opts := Options{
 		Filename:  inFilename,
@@ -88,6 +90,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 			Pretty:         alwaysPretty,
 			NoAscii:        quiet,
 			HideZerosBytes: hideZeros,
+			OmitZeroPages:  omitZeroPages,
 		},
 		Yes: yes,
 	}
@@ -182,8 +185,9 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 	if parsedPage, err := parseHexOrDec(pageSize); err == nil {
 		if parsedPage < 0 {
 			return opts, fmt.Errorf(
-				"Invalid --page/-p value %q, must be >= 0 ", colWidth)
+				"Invalid --page/-p value %q, must be >= 0", colWidth)
 		}
+
 		opts.Display.PageSize = int(parsedPage)
 	} else {
 		return opts, fmt.Errorf(
