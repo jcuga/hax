@@ -30,10 +30,9 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 	// out so we always get a full line.
 	buf := make([]byte, opts.Display.Width)
 	wrappedReader := zeroPageOmitter{
-		reader:    reader,
-		lineWidth: opts.Display.Width,
-		pageSize:  opts.Display.PageSize,
-		row:       -1,
+		reader:   reader,
+		pageSize: opts.Display.PageSize,
+		row:      -1, // -1 as on first read ++ will make 0, as we're zero based and do modulo math using this value.
 	}
 	for {
 		// pad/indent offset input so row start counts are nice and aligned.
@@ -182,7 +181,6 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 
 type zeroPageOmitter struct {
 	reader       *input.FixedLengthBufferedReader
-	lineWidth    int // needed? looks like not...
 	pageSize     int
 	row          int64
 	rowBuffer    [][]byte
@@ -203,7 +201,7 @@ func (z *zeroPageOmitter) ReadRow(buf []byte) (int, error, int) {
 		// once (if ever) hit non-zero, start returning any buffered followed by nonzeor
 		copied := make([]byte, n)
 		copy(copied, buf[0:n])
-		z.rowBuffer = append(z.rowBuffer, copied) // TODO: need to copy slice here? dito for other places?
+		z.rowBuffer = append(z.rowBuffer, copied)
 
 		for {
 			n, err := z.reader.Read(buf)
@@ -213,7 +211,7 @@ func (z *zeroPageOmitter) ReadRow(buf []byte) (int, error, int) {
 
 				copied := make([]byte, n)
 				copy(copied, buf[0:n])
-				z.rowBuffer = append(z.rowBuffer, copied) // TODO: need to copy slice here? dito for other places?
+				z.rowBuffer = append(z.rowBuffer, copied)
 
 				if int(z.row%int64(z.pageSize)) == z.pageSize-1 { // buffered a full page--clear first pageSize many from buffer, increment bytes skipped
 					for i := 0; i < z.pageSize; i++ {
@@ -228,24 +226,14 @@ func (z *zeroPageOmitter) ReadRow(buf []byte) (int, error, int) {
 				return 0, err, 0 // report error, forget about any buffered data...
 			}
 
-			if n == 0 { // reached end, return any bufferd data in order
-				// should have at least one item in buffer since added before for loop...
-				first := z.rowBuffer[0]
-				z.rowBuffer = z.rowBuffer[1:]
-				copy(buf, first)
-				skipped := z.bytesSkipped
-				z.bytesSkipped = 0
-				return len(first), nil, skipped
+			if n > 0 {
+				copied := make([]byte, n)
+				copy(copied, buf[0:n])
+				z.rowBuffer = append(z.rowBuffer, copied)
 			}
-
-			// TODO: is this same as n==0 above? if so, consolidate. NOTE: this appends current data whereas above does not since n==0...
-			// otherwise, non-empty, non-all-zero data
-			// add to buffer and return first buffered item (could be the thign we just added if at page start)
-
-			copied := make([]byte, n)
-			copy(copied, buf[0:n])
-			z.rowBuffer = append(z.rowBuffer, copied) // TODO: need to copy slice here? dito for other places?
-
+			// else: reacehd end--will want to return any buffered data in order.
+			// should have at least one item in buffer since added before for loop...
+			// in either case (n==0, n>0) we'll return first row of data here.
 			first := z.rowBuffer[0]
 			z.rowBuffer = z.rowBuffer[1:]
 			copy(buf, first)

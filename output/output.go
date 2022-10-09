@@ -1,6 +1,7 @@
 package output
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 
@@ -13,19 +14,24 @@ const (
 )
 
 func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) error {
+	// use buffered writer for better performance.
+	// ex: displaying line by line to stdout or a file when displaying hex is slow.
+	// buffering the writes significantly speeds up the hex display output.
+	w := bufio.NewWriter(writer)
+	defer w.Flush()
 	switch opts.OutputMode {
 	case options.Base64:
-		outputBase64(writer, reader, isPipe, opts)
+		outputBase64(w, reader, isPipe, opts)
 	case options.Display:
-		displayHex(writer, reader, isPipe, opts)
+		displayHex(w, reader, isPipe, opts)
 	case options.Hex:
-		outputHex(writer, reader, isPipe, opts)
+		outputHex(w, reader, isPipe, opts)
 	case options.HexString:
-		outputHexStringOrList(writer, reader, isPipe, opts)
+		outputHexStringOrList(w, reader, isPipe, opts)
 	case options.HexList:
-		outputHexStringOrList(writer, reader, isPipe, opts)
+		outputHexStringOrList(w, reader, isPipe, opts)
 	case options.Raw:
-		outputRaw(writer, reader, isPipe, opts)
+		outputRaw(w, reader, isPipe, opts)
 	default:
 		return fmt.Errorf("Unsupported or not implemented output mode: %v", opts.OutputMode)
 	}
