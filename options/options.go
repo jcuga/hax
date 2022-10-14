@@ -3,8 +3,9 @@ package options
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
+
+	"github.com/jcuga/hax/eval"
 )
 
 type IOMode int
@@ -121,30 +122,36 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 		opts.OutputMode = Display
 	}
 
-	if parsedOffset, err := parseHexOrDec(offset); err == nil {
-		if parsedOffset < 0 {
+	opts.Offset = 0
+	if len(offset) > 0 {
+		if parsedOffset, err := eval.EvalExpression(offset); err == nil {
+			if parsedOffset < 0 {
+				return opts, fmt.Errorf(
+					"Invalid --offset/-n value %q, must be >= 0 ", offset)
+			}
+			opts.Offset = parsedOffset
+		} else {
 			return opts, fmt.Errorf(
-				"Invalid --offset/-n value %q, must be >= 0 ", offset)
+				"Failed to parse --offset/-n value %q, error: %v", offset, err)
 		}
-		opts.Offset = parsedOffset
-	} else {
-		return opts, fmt.Errorf(
-			"Failed to parse --offset/-n value %q, error: %v", offset, err)
 	}
 
-	if parsedLimit, err := parseHexOrDec(limit); err == nil {
-		if parsedLimit < 0 {
-			return opts, fmt.Errorf(
-				"Invalid --limit/-l value %q, must be >= 0 ", limit)
-		}
-		if parsedLimit == 0 {
-			opts.Limit = math.MaxInt64
+	opts.Limit = math.MaxInt64
+	if len(limit) > 0 {
+		if parsedLimit, err := eval.EvalExpression(limit); err == nil {
+			if parsedLimit < 0 {
+				return opts, fmt.Errorf(
+					"Invalid --limit/-l value %q, must be >= 0 ", limit)
+			}
+			if parsedLimit == 0 {
+				opts.Limit = math.MaxInt64
+			} else {
+				opts.Limit = parsedLimit
+			}
 		} else {
-			opts.Limit = parsedLimit
+			return opts, fmt.Errorf(
+				"Failed to parse --limit/-l value %q, error: %v", limit, err)
 		}
-	} else {
-		return opts, fmt.Errorf(
-			"Failed to parse --limit/-l value %q, error: %v", limit, err)
 	}
 
 	if colWidth == "" {
@@ -155,7 +162,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 			opts.Display.Width = 0
 		}
 	} else {
-		if parsedWidth, err := parseHexOrDec(colWidth); err == nil {
+		if parsedWidth, err := eval.EvalExpression(colWidth); err == nil {
 			if parsedWidth < 1 || parsedWidth > 1024 {
 				return opts, fmt.Errorf(
 					"Invalid --width/-w value %q, must be 1-1024 ", colWidth)
@@ -170,7 +177,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 	if colSubWidth == "" {
 		opts.Display.SubWidth = 0
 	} else {
-		if parsedSubWidth, err := parseHexOrDec(colSubWidth); err == nil {
+		if parsedSubWidth, err := eval.EvalExpression(colSubWidth); err == nil {
 			if parsedSubWidth < 0 || (opts.Display.Width > 0 && parsedSubWidth > int64(opts.Display.Width)) {
 				return opts, fmt.Errorf(
 					"Invalid --sub-width/-ww value %q, must be 0 to --width (%d) ", colSubWidth, opts.Display.Width)
@@ -182,7 +189,7 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 		}
 	}
 
-	if parsedPage, err := parseHexOrDec(pageSize); err == nil {
+	if parsedPage, err := eval.EvalExpression(pageSize); err == nil {
 		if parsedPage < 0 {
 			return opts, fmt.Errorf(
 				"Invalid --page/-p value %q, must be >= 0", colWidth)
@@ -195,28 +202,4 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 	}
 
 	return opts, nil
-}
-
-func parseHexOrDec(input string) (int64, error) {
-	if len(input) == 0 {
-		return 0, nil
-	}
-	// If sarts with "0", "x", or "0x", "\x" OR has a-fA-F, then interpret as hex
-	// also interpret as hex if has spaces between nubmers which would be if one
-	// copy-pasted a value from a previous run's output (ex: "AA BB CC")
-	input = strings.ToLower(input)
-	input = strings.TrimSpace(input)
-	if strings.HasPrefix(input, "0") || strings.HasPrefix(input, "0x") || strings.HasPrefix(input, "x") ||
-		strings.HasPrefix(input, "\\x") || strings.ContainsAny(input, "abcdef ") {
-		// assume hex
-		// trim off leading "0x" or "x" if found (could be just 0 in front)
-		xIndex := strings.Index(input, "x")
-		if xIndex != -1 {
-			input = input[xIndex+1:]
-		}
-		// remove any spaces between bytes ("AA BB" --> "AABB")
-		input = strings.Replace(input, " ", "", -1)
-		return strconv.ParseInt(input, 16, 64)
-	}
-	return strconv.ParseInt(input, 10, 64)
 }
