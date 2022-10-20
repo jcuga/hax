@@ -3,6 +3,7 @@ package eval
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -31,13 +32,9 @@ func ParseHexOrDec(input string) (int64, error) {
 	return strconv.ParseInt(input, 10, 64)
 }
 
-// operator order:
-// mult and div from left to right
-// add and sub from left to right
 func EvalExpression(s string) (int64, error) {
-	items := split(s)
-	// fmt.Println(items)
-	ans, err := eval(items)
+	tokens := tokenize(s)
+	ans, err := eval(tokens)
 	if err != nil {
 		return 0, err
 	}
@@ -45,37 +42,25 @@ func EvalExpression(s string) (int64, error) {
 }
 
 func eval(tokens []string) (int64, error) {
-	// TODO: refactor so corner case special handling not necessary by virtue of way processed
-	// TODO: still use recursive, or convert to iterative? (stack of stacks?)
-	// CORNER CASE: starts with "(" not a number+operator pair
-	if len(tokens) > 0 && tokens[0] == "(" {
-		stub := []string{"0", "+"}
-		// fix by padding with number+operator that the code below expects in order to process
-		tokens = append(stub, tokens...)
-	} else if len(tokens) > 1 && tokens[0] == "-" && tokens[1] == "(" { // CORNER CASE 2: unary negative in front of parens
-		stub := []string{"-1", "*"}
-		// fix by padding with number+operator that the code below expects in order to process
-		tokens = append(stub, tokens[1:]...)
-	}
+	if len(tokens) == 0 {
+		return 0, errors.New("not enough tokens")
 
-	num, tokens, err := consumeNumber(tokens)
-	// fmt.Println("eval", num, tokens, err)
-
-	if err != nil {
-		return 0, err
 	}
-	stack := make([]int64, 0, len(tokens))
-	stack = append(stack, num)
+	if len(tokens) == 1 { // trivial single number
+		return ParseHexOrDec(tokens[0])
+	}
+	// First pass--solve parenthesis recursively, stack everything else for subsequent processing
+	reduced := make([]string, 0, len(tokens))
 	for {
-		if len(tokens) < 2 {
+		if len(tokens) < 1 {
 			break
 		}
-		op := tokens[0]
-		if tokens[1] == "(" {
+		switch token := tokens[0]; token {
+		case "(":
 			// find matching ")" and then recursively solve that sub problem
 			lastCloseParenIdx := -1
 			depth := 0
-			for i := 2; i < len(tokens); i++ {
+			for i := 1; i < len(tokens); i++ {
 				if tokens[i] == ")" {
 					if depth == 0 {
 						lastCloseParenIdx = i
@@ -89,95 +74,161 @@ func eval(tokens []string) (int64, error) {
 			if lastCloseParenIdx == -1 {
 				return 0, errors.New("no closing ')'")
 			}
-			num, err = eval(tokens[2:lastCloseParenIdx])
+			num, err := eval(tokens[1:lastCloseParenIdx])
+			if err != nil {
+				return 0, err
+			}
 			tokens = tokens[lastCloseParenIdx+1:] // TODO: is this correct?
-		} else {
-			num, tokens, err = consumeNumber(tokens[1:])
+			reduced = append(reduced, strconv.Itoa(int(num)))
+		case ")":
+			// should always consume matching ")" when we first see the opening "("
+			// getting here is a sign of mismatched parentheses
+			return 0, errors.New("mismatched ')'")
+		default:
+			reduced = append(reduced, token)
+			tokens = tokens[1:]
 		}
+	}
+	// next pass: solve unary minus
+	// now should only be numbers and operators--no parentheses
+	reduced2 := make([]string, 0, len(reduced))
+	for i := 0; i < len(reduced); i++ {
+		// only if not last token as we'll use i+1 as a number (we'll catch trailing minus as invalid later on...)
+		if reduced[i] == "-" && i < len(reduced)-1 {
+			// starting with minus or having one after another operator is considerd a unary minus
+			if i == 0 || (i > 0 && isOperator(reduced[i-1])) {
+				num, err := ParseHexOrDec(reduced[i+1])
+				if err != nil {
+					return 0, err
+				}
+				// NOTE: num itself could be negative which is fine, just flip the sign.
+				num *= -1
+				reduced[i+1] = strconv.Itoa(int(num))
+				continue
+			}
+		}
+		// keep as-is for next pass
+		reduced2 = append(reduced2, reduced[i])
+	}
+	// next pass: solve exponents
+	stack1 := make([]string, 0, len(reduced2))
+	for i := 0; i < len(reduced2); i++ {
+		switch token := reduced2[i]; token {
+		case "^":
+			if i == len(reduced2)-1 {
+				return 0, errors.New("dangling '^'")
+			}
+			if len(stack1) == 0 {
+				return 0, errors.New("mismatched '^'")
+			}
+			// pop exponent's base:
+			baseStr := stack1[len(stack1)-1]
+			stack1 = stack1[:len(stack1)-1]
+			base, err := ParseHexOrDec(baseStr)
+			if err != nil {
+				return 0, err
+			}
+			exponent, err := ParseHexOrDec(reduced2[i+1])
+			if err != nil {
+				return 0, err
+			}
+			// stack result:
+			result := strconv.Itoa(int(math.Pow(float64(base), float64(exponent))))
+			stack1 = append(stack1, result)
+			i++ // skip over consumed exponent number
+		default:
+			stack1 = append(stack1, token)
+		}
+	}
+	// next pass: solve multiply/divide/add/subtract
+	if len(stack1) == 0 {
+		return 0, errors.New("missing tokens")
+	}
+	stack2 := make([]int64, 0, len(stack1))
+	num, err := ParseHexOrDec(stack1[0])
+	if err != nil {
+		return 0, err
+	}
+	stack1 = stack1[1:]
+	stack2 = append(stack2, num)
+
+	for {
+		if len(stack1) < 2 {
+			break
+		}
+		op := stack1[0]
+		if !isOperator(op) {
+			return 0, fmt.Errorf("expected operator, got: %s", op)
+		}
+		num, err := ParseHexOrDec(stack1[1])
 		if err != nil {
 			return 0, err
 		}
+		stack1 = stack1[2:]
 		switch op {
 		case "*":
-			top := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]   // pop
-			stack = append(stack, top*num) // push
+			if len(stack2) < 1 {
+				return 0, fmt.Errorf("operator %s without preceeding number", op)
+			}
+			top := stack2[len(stack2)-1]
+			stack2 = stack2[:len(stack2)-1]  // pop
+			stack2 = append(stack2, top*num) // push
 		case "/":
-			top := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]   // pop
-			stack = append(stack, top/num) // push
+			if len(stack2) < 1 {
+				return 0, fmt.Errorf("operator %s without preceeding number", op)
+			}
+			top := stack2[len(stack2)-1]
+			stack2 = stack2[:len(stack2)-1]  // pop
+			stack2 = append(stack2, top/num) // push
 		case "+":
-			stack = append(stack, num)
+			stack2 = append(stack2, num)
 		case "-":
-			stack = append(stack, -1*num)
+			stack2 = append(stack2, -1*num)
 		default:
 			return 0, fmt.Errorf("unsupported operator: %s", op)
 		}
 	}
-
-	if len(tokens) != 0 {
-		return 0, fmt.Errorf("dangling token(s): %v", tokens)
+	if len(stack1) != 0 {
+		return 0, fmt.Errorf("dangling token(s): %v", stack1)
 	}
-
 	val := int64(0)
-	for _, st := range stack {
+	for _, st := range stack2 {
 		val += st
 	}
 	return val, nil
 }
 
-// consume number from start of tokens, handling optional minus(-) sign in front
-// NOTE: not allowing mulitple minuses in a row (but calling code can handle "2 - -1" as the first minus will be consumed an operator first)
-// nor allowing unary "+" as that is implied.
-func consumeNumber(tokens []string) (int64, []string, error) {
-	if len(tokens) == 0 {
-		return 0, nil, errors.New("no more tokens")
-	}
-	sign := int64(1)
-	numCandidate := tokens[0]
-	remainingTokens := tokens[1:]
-	if tokens[0] == "-" {
-		if len(tokens) < 2 {
-			return 0, nil, errors.New("no more tokens after '-'")
-		}
-		sign = -1
-		numCandidate = tokens[1]
-		remainingTokens = tokens[2:]
-	}
-	if num, err := ParseHexOrDec(numCandidate); err == nil {
-		return sign * num, remainingTokens, nil
-	} else {
-		return 0, nil, err
+func isOperator(s string) bool {
+	switch s {
+	case "+", "-", "*", "/", "^":
+		return true
+	default:
+		return false
 	}
 }
 
-// TODO: handle 1+-1, 3*1+-1 etc. in other words: handling negative sign as part of the number
-// TODO: one approach is to consume subsequents that just change sign and default to addition after?
-// TODO: handle ^ and << >>
-// TODO: also logical operators? ^xor and exponent^ would conflict....
-// TODO: maybe more basic math for expression and a more bit math dedicated eval for other scenarios?
-func split(s string) []string {
-	items := []string{}
+func tokenize(s string) []string {
+	tokens := []string{}
 	curToken := ""
 	for _, r := range s {
-		if r == ' ' || r == '+' || r == '-' || r == '*' || r == '/' || r == '(' || r == ')' {
+		if r == ' ' || r == '+' || r == '-' || r == '*' || r == '/' || r == '(' || r == ')' || r == '^' {
 			if len(curToken) > 0 {
 				// flush accumulated token if any data
-				items = append(items, curToken)
+				tokens = append(tokens, curToken)
 				curToken = ""
 			}
 			if r != ' ' {
-				items = append(items, string(r))
+				// operator or parenthesis--add as own token:
+				tokens = append(tokens, string(r))
 			}
-		} else { // assume number as constraints say will be a valid exp
+		} else {
+			// assume part of a number--accumulate data
 			curToken += string(r)
 		}
 	}
-
 	if len(curToken) > 0 {
-		// flush accumulated token if any data
-		items = append(items, curToken)
+		// flush any trailing data
+		tokens = append(tokens, curToken)
 	}
-
-	return items
+	return tokens
 }
