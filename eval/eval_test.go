@@ -82,6 +82,7 @@ func Test_Eval_EvalExpression(t *testing.T) {
 	cases := []testCase{
 		testCase{input: "0", expectedVal: 0, expectedErr: nil},
 		testCase{input: "  0   ", expectedVal: 0, expectedErr: nil},
+		testCase{input: "-1", expectedVal: -1, expectedErr: nil},
 		testCase{input: "1+1", expectedVal: 2, expectedErr: nil},
 		testCase{input: "  1    +   1 ", expectedVal: 2, expectedErr: nil},
 		testCase{input: "1+2+3-4", expectedVal: 2, expectedErr: nil},
@@ -92,13 +93,20 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "-2^((5+3)/2)", expectedVal: -16, expectedErr: nil},
 		testCase{input: "-2^4", expectedVal: -16, expectedErr: nil},
 		testCase{input: "(-2)^4", expectedVal: 16, expectedErr: nil},
-
+		testCase{input: "-2^-4", expectedVal: 0, expectedErr: nil},
+		testCase{input: "(-2)^-4", expectedVal: 0, expectedErr: nil},
 		testCase{input: "(2)", expectedVal: 2, expectedErr: nil},
 		testCase{input: "-(2)", expectedVal: -2, expectedErr: nil},
 		testCase{input: "-(-2)", expectedVal: 2, expectedErr: nil},
 		testCase{input: "-(1+2*3^2-4)", expectedVal: -15, expectedErr: nil},
 		testCase{input: "-(-(1+2*3^2-4))", expectedVal: 15, expectedErr: nil},
 		testCase{input: "-(-(-(1+2*3^2-4)))", expectedVal: -15, expectedErr: nil},
+		testCase{input: "-(-(-(1+2*-3^2-4)))", expectedVal: 21, expectedErr: nil},
+		testCase{input: "-(-(-(1+2*-3^2-4)))-(-(-(1+2*3^2-4)))", expectedVal: 6, expectedErr: nil},
+		testCase{input: "-(-(-(1+2*-3^2-4))) + - (-(-(1+2*3^2-4)))", expectedVal: 6, expectedErr: nil},
+		testCase{input: "-(-(-(1+2*-3^2-4)))+(-(-(1+2*3^2-4)))", expectedVal: 36, expectedErr: nil},
+
+		// TODO: some hex numbers sprinkled in using various formats \x 0x x ab, etc...
 
 		// TODO: more cases here... including error cases
 	}

@@ -32,6 +32,19 @@ func ParseHexOrDec(input string) (int64, error) {
 	return strconv.ParseInt(input, 10, 64)
 }
 
+// Returns parsed num, number of tokens consumed in parsing, error.
+func parseNumWithPossibleUnaryMinus(tokens []string) (int64, int, error) {
+	if len(tokens) == 0 {
+		return 0, 0, errors.New("no tokens")
+	}
+	if len(tokens) > 1 && tokens[0] == "-" {
+		num, err := ParseHexOrDec(tokens[1])
+		return -1 * num, 2, err
+	}
+	num, err := ParseHexOrDec(tokens[0])
+	return num, 1, err
+}
+
 func EvalExpression(s string) (int64, error) {
 	tokens := tokenize(s)
 	ans, err := eval(tokens)
@@ -78,7 +91,7 @@ func eval(tokens []string) (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			tokens = tokens[lastCloseParenIdx+1:] // TODO: is this correct?
+			tokens = tokens[lastCloseParenIdx+1:]
 			reduced = append(reduced, strconv.Itoa(int(num)))
 		case ")":
 			// should always consume matching ")" when we first see the opening "("
@@ -89,33 +102,12 @@ func eval(tokens []string) (int64, error) {
 			tokens = tokens[1:]
 		}
 	}
-	// next pass: solve unary minus
-	// now should only be numbers and operators--no parentheses
-	reduced2 := make([]string, 0, len(reduced))
-	for i := 0; i < len(reduced); i++ {
-		// only if not last token as we'll use i+1 as a number (we'll catch trailing minus as invalid later on...)
-		if reduced[i] == "-" && i < len(reduced)-1 {
-			// starting with minus or having one after another operator is considerd a unary minus
-			if i == 0 || (i > 0 && isOperator(reduced[i-1])) {
-				num, err := ParseHexOrDec(reduced[i+1])
-				if err != nil {
-					return 0, err
-				}
-				// NOTE: num itself could be negative which is fine, just flip the sign.
-				num *= -1
-				reduced[i+1] = strconv.Itoa(int(num))
-				continue
-			}
-		}
-		// keep as-is for next pass
-		reduced2 = append(reduced2, reduced[i])
-	}
 	// next pass: solve exponents
-	stack1 := make([]string, 0, len(reduced2))
-	for i := 0; i < len(reduced2); i++ {
-		switch token := reduced2[i]; token {
+	stack1 := make([]string, 0, len(reduced))
+	for i := 0; i < len(reduced); i++ {
+		switch token := reduced[i]; token {
 		case "^":
-			if i == len(reduced2)-1 {
+			if i == len(reduced)-1 {
 				return 0, errors.New("dangling '^'")
 			}
 			if len(stack1) == 0 {
@@ -124,18 +116,21 @@ func eval(tokens []string) (int64, error) {
 			// pop exponent's base:
 			baseStr := stack1[len(stack1)-1]
 			stack1 = stack1[:len(stack1)-1]
+			// NOTE: not using parseNumWithPossibleUnaryMinus as exponent comes before unary minus
+			// in other words -2^4 is -8 since it's really -(2^4) whereas (-2)^4 is 8...
 			base, err := ParseHexOrDec(baseStr)
 			if err != nil {
 				return 0, err
 			}
-			exponent, err := ParseHexOrDec(reduced2[i+1])
+			// NOTE: handle unary minus
+			exponent, tokensConsumed, err := parseNumWithPossibleUnaryMinus(reduced[i+1:])
 			if err != nil {
 				return 0, err
 			}
 			// stack result:
 			result := strconv.Itoa(int(math.Pow(float64(base), float64(exponent))))
 			stack1 = append(stack1, result)
-			i++ // skip over consumed exponent number
+			i += tokensConsumed // skip over consumed exponent number
 		default:
 			stack1 = append(stack1, token)
 		}
@@ -145,11 +140,15 @@ func eval(tokens []string) (int64, error) {
 		return 0, errors.New("missing tokens")
 	}
 	stack2 := make([]int64, 0, len(stack1))
-	num, err := ParseHexOrDec(stack1[0])
+	// NOTE: handle unary minus
+	var num int64
+	var err error
+	var tokensConsumed int
+	num, tokensConsumed, err = parseNumWithPossibleUnaryMinus(stack1)
+	stack1 = stack1[tokensConsumed:]
 	if err != nil {
 		return 0, err
 	}
-	stack1 = stack1[1:]
 	stack2 = append(stack2, num)
 
 	for {
@@ -160,11 +159,13 @@ func eval(tokens []string) (int64, error) {
 		if !isOperator(op) {
 			return 0, fmt.Errorf("expected operator, got: %s", op)
 		}
-		num, err := ParseHexOrDec(stack1[1])
+		stack1 = stack1[1:]
+		// NOTE: handle unary minus
+		num, tokensConsumed, err = parseNumWithPossibleUnaryMinus(stack1)
 		if err != nil {
 			return 0, err
 		}
-		stack1 = stack1[2:]
+		stack1 = stack1[tokensConsumed:]
 		switch op {
 		case "*":
 			if len(stack2) < 1 {
