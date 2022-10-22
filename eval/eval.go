@@ -106,7 +106,7 @@ func eval(tokens []string) (int64, error) {
 	stack1 := make([]string, 0, len(reduced))
 	for i := 0; i < len(reduced); i++ {
 		switch token := reduced[i]; token {
-		case "^":
+		case "**":
 			if i == len(reduced)-1 {
 				return 0, errors.New("dangling '^'")
 			}
@@ -201,7 +201,7 @@ func eval(tokens []string) (int64, error) {
 
 func isOperator(s string) bool {
 	switch s {
-	case "+", "-", "*", "/", "^":
+	case "+", "-", "*", "/", "**":
 		return true
 	default:
 		return false
@@ -209,26 +209,41 @@ func isOperator(s string) bool {
 }
 
 func tokenize(s string) []string {
+	// first--eliminate ignored chars
+	// this allow for writing numbers like:
+	// "1,000", "1 000 000", "1_000_000" etc
+	var normS strings.Builder
+	for _, r := range s {
+		if r == ' ' || r == '_' || r == ',' {
+			continue
+		}
+		normS.WriteRune(r)
+	}
+	s = normS.String()
+
 	tokens := []string{}
 	curToken := ""
-	for _, r := range s {
-		if r == ' ' || r == '+' || r == '-' || r == '*' || r == '/' || r == '(' || r == ')' || r == '^' {
+	for i := 0; i < len(s); i++ {
+		// handle 2-char operators like **, <<, >>, etc
+		if i < len(s)-1 && isOperator(s[i:i+2]) {
 			if len(curToken) > 0 {
-				// flush accumulated token if any data
 				tokens = append(tokens, curToken)
 				curToken = ""
 			}
-			if r != ' ' {
-				// operator or parenthesis--add as own token:
-				tokens = append(tokens, string(r))
+			tokens = append(tokens, s[i:i+2])
+			i++ // skip 2nd char in addition to normal loop iteration increment of i
+		} else if isOperator(string(s[i])) || s[i] == '(' || s[i] == ')' { // check for single digit operator
+			if len(curToken) > 0 {
+				tokens = append(tokens, curToken)
+				curToken = ""
 			}
-		} else {
-			// assume part of a number--accumulate data
-			curToken += string(r)
+			tokens = append(tokens, string(s[i]))
+		} else { // since not ignored char or operator, assume part of a number
+			curToken += string(s[i])
 		}
 	}
+	// flush any trailing data
 	if len(curToken) > 0 {
-		// flush any trailing data
 		tokens = append(tokens, curToken)
 	}
 	return tokens
