@@ -51,7 +51,7 @@ func Test_tokenize(t *testing.T) {
 	}
 }
 
-func Test_Eval_ParseHexOrDec(t *testing.T) {
+func Test_Eval_ParseHexDecOrBin(t *testing.T) {
 	type testCase struct {
 		input       string
 		expectedVal int64
@@ -63,13 +63,21 @@ func Test_Eval_ParseHexOrDec(t *testing.T) {
 		testCase{input: "-1", expectedVal: -1, expectedErr: nil},
 		testCase{input: "\\xA", expectedVal: 10, expectedErr: nil},
 		testCase{input: "\\xb", expectedVal: 11, expectedErr: nil},
-		testCase{input: "0a", expectedVal: 10, expectedErr: nil},
-		testCase{input: "0B", expectedVal: 11, expectedErr: nil},
-		testCase{input: "-0B", expectedVal: -11, expectedErr: nil},
+		testCase{input: "xab", expectedVal: 171, expectedErr: nil},
+		testCase{input: "\\xAbCd", expectedVal: 43981, expectedErr: nil},
+		testCase{input: "\\x0a", expectedVal: 10, expectedErr: nil},
+		testCase{input: "0x0B", expectedVal: 11, expectedErr: nil},
+		testCase{input: "-\\x0B", expectedVal: -11, expectedErr: nil},
+		testCase{input: "B1", expectedVal: 1, expectedErr: nil},
+		testCase{input: "0b11", expectedVal: 3, expectedErr: nil},
+		testCase{input: "\\b101", expectedVal: 5, expectedErr: nil},
+		testCase{input: "-b101", expectedVal: -5, expectedErr: nil},
+		testCase{input: "B101", expectedVal: 5, expectedErr: nil},
+		testCase{input: "b0000 0000 0000 0011", expectedVal: 3, expectedErr: nil},
 		// TODO: more cases here... including error cases
 	}
 	for _, c := range cases {
-		val, err := ParseHexOrDec(c.input)
+		val, err := ParseHexDecOrBin(c.input)
 		if val != c.expectedVal {
 			t.Errorf("Unexpected value, input: %v, expect: %v, got: %v", c.input, c.expectedVal, val)
 		}

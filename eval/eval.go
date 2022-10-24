@@ -8,28 +8,44 @@ import (
 	"strings"
 )
 
-func ParseHexOrDec(input string) (int64, error) {
+func ParseHexDecOrBin(input string) (int64, error) {
 	if len(input) == 0 {
 		return 0, nil
 	}
-	// If sarts with "0", "x", or "0x", "\x" OR has a-fA-F, then interpret as hex
-	// also interpret as hex if has spaces between nubmers which would be if one
-	// copy-pasted a value from a previous run's output (ex: "AA BB CC")
+	// If sarts with "x", "0x", or "\\x" then interpret as hex
+	// If sarts with "b", "0b", or "\\b" then interpret as binary
+	// else interpret as decimal.
+	// In all cases, ignore space/comma/underscores as formatting
 	input = strings.ToLower(input)
 	input = strings.TrimSpace(input)
-	if strings.HasPrefix(input, "0") || strings.HasPrefix(input, "0x") || strings.HasPrefix(input, "x") ||
-		strings.HasPrefix(input, "\\x") || strings.ContainsAny(input, "abcdef ") {
-		// assume hex
-		// trim off leading "0x" or "x" if found (could be just 0 in front)
+	input = strings.Replace(input, " ", "", -1)
+	input = strings.Replace(input, "_", "", -1)
+	input = strings.Replace(input, ",", "", -1)
+	sign := int64(1)
+	if strings.HasPrefix(input, "-") {
+		input = input[1:]
+		sign = -1
+	}
+	parsed := int64(0)
+	var err error
+	if strings.HasPrefix(input, "x") || strings.HasPrefix(input, "0x") || strings.HasPrefix(input, "\\x") {
+		// trim off leading "0x", "\\x", or "x"
 		xIndex := strings.Index(input, "x")
 		if xIndex != -1 {
 			input = input[xIndex+1:]
 		}
-		// remove any spaces between bytes ("AA BB" --> "AABB")
-		input = strings.Replace(input, " ", "", -1)
-		return strconv.ParseInt(input, 16, 64)
+		parsed, err = strconv.ParseInt(input, 16, 64)
+	} else if strings.HasPrefix(input, "b") || strings.HasPrefix(input, "0b") || strings.HasPrefix(input, "\\b") {
+		// trim off leading "0b", "\\b", or "b"
+		bIndex := strings.Index(input, "b")
+		if bIndex != -1 {
+			input = input[bIndex+1:]
+		}
+		parsed, err = strconv.ParseInt(input, 2, 64)
+	} else {
+		parsed, err = strconv.ParseInt(input, 10, 64)
 	}
-	return strconv.ParseInt(input, 10, 64)
+	return sign * parsed, err
 }
 
 // Returns parsed num, number of tokens consumed in parsing, error.
@@ -38,10 +54,10 @@ func parseNumWithPossibleUnaryMinus(tokens []string) (int64, int, error) {
 		return 0, 0, errors.New("no tokens")
 	}
 	if len(tokens) > 1 && tokens[0] == "-" {
-		num, err := ParseHexOrDec(tokens[1])
+		num, err := ParseHexDecOrBin(tokens[1])
 		return -1 * num, 2, err
 	}
-	num, err := ParseHexOrDec(tokens[0])
+	num, err := ParseHexDecOrBin(tokens[0])
 	return num, 1, err
 }
 
@@ -60,7 +76,7 @@ func eval(tokens []string) (int64, error) {
 
 	}
 	if len(tokens) == 1 { // trivial single number
-		return ParseHexOrDec(tokens[0])
+		return ParseHexDecOrBin(tokens[0])
 	}
 	// First pass--solve parenthesis recursively, stack everything else for subsequent processing
 	reduced := make([]string, 0, len(tokens))
@@ -118,7 +134,7 @@ func eval(tokens []string) (int64, error) {
 			stack1 = stack1[:len(stack1)-1]
 			// NOTE: not using parseNumWithPossibleUnaryMinus as exponent comes before unary minus
 			// in other words -2^4 is -8 since it's really -(2^4) whereas (-2)^4 is 8...
-			base, err := ParseHexOrDec(baseStr)
+			base, err := ParseHexDecOrBin(baseStr)
 			if err != nil {
 				return 0, err
 			}
