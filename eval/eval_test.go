@@ -41,6 +41,7 @@ func Test_tokenize(t *testing.T) {
 		testCase{input: " - 234  ", expectedVal: []string{"-", "234"}},
 		testCase{input: " 1+ 2* 3/ 4 ", expectedVal: []string{"1", "+", "2", "*", "3", "/", "4"}},
 		testCase{input: "(1+2)*(3/4)", expectedVal: []string{"(", "1", "+", "2", ")", "*", "(", "3", "/", "4", ")"}},
+		testCase{input: "(~1+2)*~(3/4)", expectedVal: []string{"(", "~", "1", "+", "2", ")", "*", "~", "(", "3", "/", "4", ")"}},
 		testCase{input: "-(1+2)*-(3/4)", expectedVal: []string{"-", "(", "1", "+", "2", ")", "*", "-", "(", "3", "/", "4", ")"}},
 		testCase{input: "---3", expectedVal: []string{"-", "-", "-", "3"}},
 	}
@@ -97,7 +98,37 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "0", expectedVal: 0, expectedErr: nil},
 		testCase{input: "  0   ", expectedVal: 0, expectedErr: nil},
 		testCase{input: "-1", expectedVal: -1, expectedErr: nil},
+
+		// Unary bitwise not/flip bits
+		testCase{input: "~1", expectedVal: -2, expectedErr: nil},
+		testCase{input: "~2", expectedVal: -3, expectedErr: nil},
+		testCase{input: "~-~1", expectedVal: -3, expectedErr: nil},
+		testCase{input: "~-~-1", expectedVal: -1, expectedErr: nil},
+		testCase{input: "~-~-~1", expectedVal: -4, expectedErr: nil},
+		testCase{input: "~~1", expectedVal: 1, expectedErr: nil},
+		testCase{input: "~~-1", expectedVal: -1, expectedErr: nil},
+		testCase{input: "-~~-1", expectedVal: 1, expectedErr: nil},
+		testCase{input: "-~-~-1", expectedVal: 1, expectedErr: nil},
+		testCase{input: "---~~1", expectedVal: -1, expectedErr: nil},
+		testCase{input: "~~---1", expectedVal: -1, expectedErr: nil},
+		testCase{input: "~(2*3)", expectedVal: -7, expectedErr: nil},
+		testCase{input: "~(2*3)*4", expectedVal: -28, expectedErr: nil},
+		testCase{input: "~(2*3)*~4", expectedVal: 35, expectedErr: nil},
+		testCase{input: "-~(2*3)*~4", expectedVal: -35, expectedErr: nil},
+		testCase{input: "~(~(2*3)*~4)", expectedVal: -36, expectedErr: nil},
+		testCase{input: "~(~(2*~3)*~4)", expectedVal: 34, expectedErr: nil},
+		testCase{input: "~(~(~2*~3)*~4)", expectedVal: -66, expectedErr: nil},
+		testCase{input: "2**~-3", expectedVal: 4, expectedErr: nil},
+		testCase{input: "~2**~-3", expectedVal: -5, expectedErr: nil},
+		testCase{input: "~(~2**~-3)", expectedVal: 4, expectedErr: nil},
+		testCase{input: "-~(~2**~-3)", expectedVal: -4, expectedErr: nil},
+		testCase{input: "~-(~2**~-3)", expectedVal: -6, expectedErr: nil},
+
 		testCase{input: "1+1", expectedVal: 2, expectedErr: nil},
+		testCase{input: "1--1", expectedVal: 2, expectedErr: nil},
+		testCase{input: "1+-1", expectedVal: 0, expectedErr: nil},
+		testCase{input: "1+--1", expectedVal: 2, expectedErr: nil},
+		testCase{input: "1---1", expectedVal: 0, expectedErr: nil},
 		testCase{input: "  1    +   1 ", expectedVal: 2, expectedErr: nil},
 		testCase{input: "1+2+3-4", expectedVal: 2, expectedErr: nil},
 		testCase{input: "1+(2*3)", expectedVal: 7, expectedErr: nil},
@@ -120,7 +151,11 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "-(-(-(1+2*-3**2-4)))-(-(-(1+2*3**2-4)))", expectedVal: 6, expectedErr: nil},
 		testCase{input: "-(-(-(1+2*-3**2-4))) + - (-(-(1+2*3**2-4)))", expectedVal: 6, expectedErr: nil},
 		testCase{input: "-(-(-(1+2*-3**2-4)))+(-(-(1+2*3**2-4)))", expectedVal: 36, expectedErr: nil},
-
+		testCase{input: "b1000*2**2**2/2+3", expectedVal: 67, expectedErr: nil},
+		// allow space or underscore or comma to format numbers:
+		testCase{input: "b1_0_0_0*2**2**2/2+3", expectedVal: 67, expectedErr: nil},
+		testCase{input: "b10 00*2**2**2/2+3", expectedVal: 67, expectedErr: nil},
+		testCase{input: "b10,00*2**2**2/2+3", expectedVal: 67, expectedErr: nil},
 		// TODO: some hex numbers sprinkled in using various formats \x 0x x ab, etc...
 
 		// TODO: more cases here... including error cases

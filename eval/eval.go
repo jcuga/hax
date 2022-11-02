@@ -49,16 +49,43 @@ func ParseHexDecOrBin(input string) (int64, error) {
 }
 
 // Returns parsed num, number of tokens consumed in parsing, error.
-func parseNumWithPossibleUnaryMinus(tokens []string) (int64, int, error) {
+func parseNumWithPossibleUnaryOperators(tokens []string) (int64, int, error) {
 	if len(tokens) == 0 {
 		return 0, 0, errors.New("no tokens")
 	}
-	if len(tokens) > 1 && tokens[0] == "-" {
-		num, err := ParseHexDecOrBin(tokens[1])
-		return -1 * num, 2, err
+	// NOTE: have to buffer unary operators as order matters.
+	// ex: ~-1 == 0 which is not the same as -~ == 2
+	unaries := make([]string, 0)
+	numTokensConsumed := 0
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i] == "-" || tokens[i] == "~" {
+			unaries = append(unaries, tokens[i])
+			numTokensConsumed++
+		} else {
+			break
+		}
 	}
-	num, err := ParseHexDecOrBin(tokens[0])
-	return num, 1, err
+	num, err := ParseHexDecOrBin(tokens[numTokensConsumed])
+	numTokensConsumed++
+	if err != nil {
+		return 0, 0, err
+	}
+	// apply unary operators:
+	for i := len(unaries) - 1; i >= 0; i-- {
+		switch u := unaries[i]; u {
+		case "-":
+			num *= -1
+		case "~":
+			// NOTE: in golang, there is no "~", one uses the unary xor (^):
+			num = ^num
+		default:
+			// hitting this implies programming error above:
+			// not using same set of unary operators here versus there.
+			return 0, 0, fmt.Errorf("unhandled unary: %q", u)
+		}
+
+	}
+	return num, numTokensConsumed, nil
 }
 
 func EvalExpression(s string) (int64, error) {
@@ -132,14 +159,14 @@ func eval(tokens []string) (int64, error) {
 			// pop exponent's base:
 			baseStr := stack1[len(stack1)-1]
 			stack1 = stack1[:len(stack1)-1]
-			// NOTE: not using parseNumWithPossibleUnaryMinus as exponent comes before unary minus
+			// NOTE: not using parseNumWithPossibleUnaryOperators as exponent comes before unary minus
 			// in other words -2^4 is -8 since it's really -(2^4) whereas (-2)^4 is 8...
 			base, err := ParseHexDecOrBin(baseStr)
 			if err != nil {
 				return 0, err
 			}
 			// NOTE: handle unary minus
-			exponent, tokensConsumed, err := parseNumWithPossibleUnaryMinus(reduced[i+1:])
+			exponent, tokensConsumed, err := parseNumWithPossibleUnaryOperators(reduced[i+1:])
 			if err != nil {
 				return 0, err
 			}
@@ -160,7 +187,7 @@ func eval(tokens []string) (int64, error) {
 	var num int64
 	var err error
 	var tokensConsumed int
-	num, tokensConsumed, err = parseNumWithPossibleUnaryMinus(stack1)
+	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack1)
 	stack1 = stack1[tokensConsumed:]
 	if err != nil {
 		return 0, err
@@ -177,7 +204,7 @@ func eval(tokens []string) (int64, error) {
 		}
 		stack1 = stack1[1:]
 		// NOTE: handle unary minus
-		num, tokensConsumed, err = parseNumWithPossibleUnaryMinus(stack1)
+		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack1)
 		if err != nil {
 			return 0, err
 		}
@@ -216,8 +243,19 @@ func eval(tokens []string) (int64, error) {
 }
 
 func isOperator(s string) bool {
+	// NOTE: absent is: "~" as that is always a unary operator and consumed
+	// as part of the number.
 	switch s {
 	case "+", "-", "*", "/", "**":
+		return true
+	default:
+		return false
+	}
+}
+
+func isUnary(s string) bool {
+	switch s {
+	case "-", "~":
 		return true
 	default:
 		return false
@@ -248,7 +286,7 @@ func tokenize(s string) []string {
 			}
 			tokens = append(tokens, s[i:i+2])
 			i++ // skip 2nd char in addition to normal loop iteration increment of i
-		} else if isOperator(string(s[i])) || s[i] == '(' || s[i] == ')' { // check for single digit operator
+		} else if isOperator(string(s[i])) || isUnary(string(s[i])) || s[i] == '(' || s[i] == ')' { // check for single digit operator
 			if len(curToken) > 0 {
 				tokens = append(tokens, curToken)
 				curToken = ""
