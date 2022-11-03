@@ -99,7 +99,7 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "  0   ", expectedVal: 0, expectedErr: nil},
 		testCase{input: "-1", expectedVal: -1, expectedErr: nil},
 
-		// Unary bitwise not/flip bits
+		// Unary bitwise not/flip bits and other extra unary operators (+, -)
 		testCase{input: "~1", expectedVal: -2, expectedErr: nil},
 		testCase{input: "~2", expectedVal: -3, expectedErr: nil},
 		testCase{input: "~-~1", expectedVal: -3, expectedErr: nil},
@@ -123,6 +123,11 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "~(~2**~-3)", expectedVal: 4, expectedErr: nil},
 		testCase{input: "-~(~2**~-3)", expectedVal: -4, expectedErr: nil},
 		testCase{input: "~-(~2**~-3)", expectedVal: -6, expectedErr: nil},
+		testCase{input: "1++1", expectedVal: 2, expectedErr: nil},
+		testCase{input: "1+++1", expectedVal: 2, expectedErr: nil},
+		testCase{input: "1++-+1", expectedVal: 0, expectedErr: nil},
+		testCase{input: "1+~+-+1", expectedVal: 1, expectedErr: nil},
+		testCase{input: "1+~+-+~1", expectedVal: -2, expectedErr: nil},
 
 		testCase{input: "1+1", expectedVal: 2, expectedErr: nil},
 		testCase{input: "1--1", expectedVal: 2, expectedErr: nil},

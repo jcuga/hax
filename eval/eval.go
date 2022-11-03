@@ -58,7 +58,7 @@ func parseNumWithPossibleUnaryOperators(tokens []string) (int64, int, error) {
 	unaries := make([]string, 0)
 	numTokensConsumed := 0
 	for i := 0; i < len(tokens); i++ {
-		if tokens[i] == "-" || tokens[i] == "~" {
+		if isUnary(tokens[i]) {
 			unaries = append(unaries, tokens[i])
 			numTokensConsumed++
 		} else {
@@ -73,6 +73,8 @@ func parseNumWithPossibleUnaryOperators(tokens []string) (int64, int, error) {
 	// apply unary operators:
 	for i := len(unaries) - 1; i >= 0; i-- {
 		switch u := unaries[i]; u {
+		case "+":
+			// do nothing, unary + keeps number the same
 		case "-":
 			num *= -1
 		case "~":
@@ -80,7 +82,7 @@ func parseNumWithPossibleUnaryOperators(tokens []string) (int64, int, error) {
 			num = ^num
 		default:
 			// hitting this implies programming error above:
-			// not using same set of unary operators here versus there.
+			// not using same set of unary operators here versus in isUnary()
 			return 0, 0, fmt.Errorf("unhandled unary: %q", u)
 		}
 
@@ -255,7 +257,7 @@ func isOperator(s string) bool {
 
 func isUnary(s string) bool {
 	switch s {
-	case "-", "~":
+	case "-", "~", "+":
 		return true
 	default:
 		return false
