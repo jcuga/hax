@@ -180,7 +180,7 @@ func eval(tokens []string) (int64, error) {
 			stack1 = append(stack1, token)
 		}
 	}
-	// next pass: solve multiply/divide/add/subtract
+	// next pass: solve multiply/divide/add/subtract/modulo
 	if len(stack1) == 0 {
 		return 0, errors.New("missing tokens")
 	}
@@ -224,8 +224,25 @@ func eval(tokens []string) (int64, error) {
 				return 0, fmt.Errorf("operator %s without preceeding number", op)
 			}
 			top := stack2[len(stack2)-1]
-			stack2 = stack2[:len(stack2)-1]  // pop
+			stack2 = stack2[:len(stack2)-1] // pop
+			if num == 0 {
+				return 0, errors.New("divide by zero")
+			}
 			stack2 = append(stack2, top/num) // push
+		case "%":
+			if len(stack2) < 1 {
+				return 0, fmt.Errorf("operator %s without preceeding number", op)
+			}
+			top := stack2[len(stack2)-1]
+			stack2 = stack2[:len(stack2)-1] // pop
+			// NOTE: golang modulo works differently than python when negatives are involved.
+			// See: https://stackoverflow.com/a/43018347
+			// TLDR: when using a negative, ex: -9%10, python gives 1 whereas golang gives -9.
+			// Keeping the golang behavior but worth pointing out.
+			if num == 0 {
+				return 0, errors.New("modulo divide by zero")
+			}
+			stack2 = append(stack2, top%num) // push
 		case "+":
 			stack2 = append(stack2, num)
 		case "-":
@@ -248,7 +265,7 @@ func isOperator(s string) bool {
 	// NOTE: absent is: "~" as that is always a unary operator and consumed
 	// as part of the number.
 	switch s {
-	case "+", "-", "*", "/", "**":
+	case "+", "-", "*", "/", "**", "%":
 		return true
 	default:
 		return false
