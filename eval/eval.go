@@ -243,6 +243,13 @@ func eval(tokens []string) (int64, error) {
 				return 0, errors.New("modulo divide by zero")
 			}
 			stack2 = append(stack2, top%num) // push
+		// TODO: another pass? recursion? or rethink how we approach all this?
+		// case "<<":
+		// 	// TODO: do it -- NOTE: need to apply AFTER div/mult
+		// 	// TODO: so sounds like a nother pass... apply after add/sub too?
+		// case ">>":
+		// 	// TODO: do it -- NOTE: need to apply AFTER div/mult
+		// 	// TODO: so sounds like a nother pass... apply after add/sub too?
 		case "+":
 			stack2 = append(stack2, num)
 		case "-":
@@ -265,7 +272,7 @@ func isOperator(s string) bool {
 	// NOTE: absent is: "~" as that is always a unary operator and consumed
 	// as part of the number.
 	switch s {
-	case "+", "-", "*", "/", "**", "%":
+	case "+", "-", "*", "/", "**", "%", "<<", ">>":
 		return true
 	default:
 		return false

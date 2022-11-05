@@ -59,6 +59,10 @@ func Test_tokenize(t *testing.T) {
 		testCase{input: "(~1+2)*~(3/4)", expectedVal: []string{"(", "~", "1", "+", "2", ")", "*", "~", "(", "3", "/", "4", ")"}},
 		testCase{input: "-(1+2)*-(3/4)", expectedVal: []string{"-", "(", "1", "+", "2", ")", "*", "-", "(", "3", "/", "4", ")"}},
 		testCase{input: "---3", expectedVal: []string{"-", "-", "-", "3"}},
+		testCase{input: "1>>2", expectedVal: []string{"1", ">>", "2"}},
+		testCase{input: ">><<", expectedVal: []string{">>", "<<"}},
+		testCase{input: ">>>>", expectedVal: []string{">>", ">>"}},
+		testCase{input: "(1>>(2>>3))", expectedVal: []string{"(", "1", ">>", "(", "2", ">>", "3", ")", ")"}},
 	}
 	for _, c := range cases {
 		if val := tokenize(c.input); !strSliceEqual(c.expectedVal, val) {
@@ -162,6 +166,14 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "-11*-9%10", expectedVal: 9, expectedErr: ""},
 		testCase{input: "-11*(-9%10)", expectedVal: 99, expectedErr: ""},
 		testCase{input: "-11*~(-9%10)", expectedVal: -88, expectedErr: ""},
+
+		testCase{input: "3<<2", expectedVal: 12, expectedErr: ""},
+		testCase{input: "3*2<<2*2", expectedVal: 96, expectedErr: ""},
+		testCase{input: "12>>1", expectedVal: 6, expectedErr: ""},
+		testCase{input: "0>>1", expectedVal: 0, expectedErr: ""},
+		testCase{input: "0>>0", expectedVal: 0, expectedErr: ""},
+		testCase{input: "3<<0", expectedVal: 3, expectedErr: ""},
+		testCase{input: "5*4<<3*2", expectedVal: 1280, expectedErr: ""},
 
 		testCase{input: "1+1", expectedVal: 2, expectedErr: ""},
 		testCase{input: "1--1", expectedVal: 2, expectedErr: ""},
