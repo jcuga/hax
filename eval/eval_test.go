@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func strSliceEqual(a, b []string) bool {
+func tokenValueSliceEqual(a, b []tokenValue) bool {
 	if a == nil && b == nil {
 		return true
 	} else if a == nil || b == nil {
@@ -15,7 +15,10 @@ func strSliceEqual(a, b []string) bool {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
+		if a[i].token != b[i].token {
+			return false
+		}
+		if a[i].value != b[i].value {
 			return false
 		}
 	}
@@ -39,34 +42,131 @@ func ErrorContains(out error, want string) bool {
 func Test_tokenize(t *testing.T) {
 	type testCase struct {
 		input       string
-		expectedVal []string
+		expectedVal []tokenValue
+		expectedErr string
 	}
 	cases := []testCase{
-		testCase{input: "", expectedVal: []string{}},
-		testCase{input: "0", expectedVal: []string{"0"}},
-		testCase{input: "*", expectedVal: []string{"*"}},
-		testCase{input: "**", expectedVal: []string{"**"}},
-		testCase{input: "* **", expectedVal: []string{"**", "*"}},
-		testCase{input: " ****", expectedVal: []string{"**", "**"}},
-		testCase{input: "* * * * *", expectedVal: []string{"**", "**", "*"}},
-		testCase{input: "-1", expectedVal: []string{"-", "1"}},
-		testCase{input: "-234", expectedVal: []string{"-", "234"}},
-		testCase{input: "1+2*3/4", expectedVal: []string{"1", "+", "2", "*", "3", "/", "4"}},
-		testCase{input: "1+2**3*4/4", expectedVal: []string{"1", "+", "2", "**", "3", "*", "4", "/", "4"}},
-		testCase{input: " - 234  ", expectedVal: []string{"-", "234"}},
-		testCase{input: " 1+ 2* 3/ 4 ", expectedVal: []string{"1", "+", "2", "*", "3", "/", "4"}},
-		testCase{input: "(1+2)*(3/4)", expectedVal: []string{"(", "1", "+", "2", ")", "*", "(", "3", "/", "4", ")"}},
-		testCase{input: "(~1+2)*~(3/4)", expectedVal: []string{"(", "~", "1", "+", "2", ")", "*", "~", "(", "3", "/", "4", ")"}},
-		testCase{input: "-(1+2)*-(3/4)", expectedVal: []string{"-", "(", "1", "+", "2", ")", "*", "-", "(", "3", "/", "4", ")"}},
-		testCase{input: "---3", expectedVal: []string{"-", "-", "-", "3"}},
-		testCase{input: "1>>2", expectedVal: []string{"1", ">>", "2"}},
-		testCase{input: ">><<", expectedVal: []string{">>", "<<"}},
-		testCase{input: ">>>>", expectedVal: []string{">>", ">>"}},
-		testCase{input: "(1>>(2>>3))", expectedVal: []string{"(", "1", ">>", "(", "2", ">>", "3", ")", ")"}},
+		testCase{input: "", expectedVal: []tokenValue{}, expectedErr: ""},
+		testCase{input: "0", expectedVal: []tokenValue{tokenValue{token: Number, value: 0}}},
+		testCase{input: "*", expectedVal: []tokenValue{tokenValue{token: Multiply, value: 0}}},
+		testCase{input: "**", expectedVal: []tokenValue{tokenValue{token: Exponent, value: 0}}},
+		testCase{input: "* **", expectedVal: []tokenValue{tokenValue{token: Exponent, value: 0}, tokenValue{token: Multiply, value: 0}}},
+		testCase{input: "****", expectedVal: []tokenValue{tokenValue{token: Exponent, value: 0}, tokenValue{token: Exponent, value: 0}}},
+		testCase{input: "* * * * *", expectedVal: []tokenValue{tokenValue{token: Exponent, value: 0}, tokenValue{token: Exponent, value: 0}, tokenValue{token: Multiply, value: 0}}},
+		testCase{input: "-1", expectedVal: []tokenValue{tokenValue{token: Minus, value: 0}, tokenValue{token: Number, value: 1}}},
+		testCase{input: "~234", expectedVal: []tokenValue{tokenValue{token: UnaryBitwiseNot, value: 0}, tokenValue{token: Number, value: 234}}},
+		testCase{input: "1+2*3/4", expectedVal: []tokenValue{
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: Plus, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: Multiply, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: Divide, value: 0},
+			tokenValue{token: Number, value: 4},
+		}},
+		testCase{input: "1+2**3*4/4", expectedVal: []tokenValue{
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: Plus, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: Exponent, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: Multiply, value: 0},
+			tokenValue{token: Number, value: 4},
+			tokenValue{token: Divide, value: 0},
+			tokenValue{token: Number, value: 4},
+		}},
+		testCase{input: " - 234  ", expectedVal: []tokenValue{tokenValue{token: Minus, value: 0}, tokenValue{token: Number, value: 234}}},
+		// NOTE: ignore comma/underscore/space:
+		testCase{input: " 1+ 2,_ * 3/ 4 ", expectedVal: []tokenValue{
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: Plus, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: Multiply, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: Divide, value: 0},
+			tokenValue{token: Number, value: 4},
+		}},
+		testCase{input: "(1+2)*(3/4)", expectedVal: []tokenValue{
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: Plus, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: CloseParentheses, value: 0},
+			tokenValue{token: Multiply, value: 0},
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: Divide, value: 0},
+			tokenValue{token: Number, value: 4},
+			tokenValue{token: CloseParentheses, value: 0},
+		}},
+		testCase{input: "(~1+2)*~(3/4)", expectedVal: []tokenValue{
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: UnaryBitwiseNot, value: 0},
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: Plus, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: CloseParentheses, value: 0},
+			tokenValue{token: Multiply, value: 0},
+			tokenValue{token: UnaryBitwiseNot, value: 0},
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: Divide, value: 0},
+			tokenValue{token: Number, value: 4},
+			tokenValue{token: CloseParentheses, value: 0},
+		}},
+		testCase{input: "-(1+2)*-(3/4)", expectedVal: []tokenValue{
+			tokenValue{token: Minus, value: 0},
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: Plus, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: CloseParentheses, value: 0},
+			tokenValue{token: Multiply, value: 0},
+			tokenValue{token: Minus, value: 0},
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: Divide, value: 0},
+			tokenValue{token: Number, value: 4},
+			tokenValue{token: CloseParentheses, value: 0},
+		}},
+		testCase{input: "---3", expectedVal: []tokenValue{
+			tokenValue{token: Minus, value: 0},
+			tokenValue{token: Minus, value: 0},
+			tokenValue{token: Minus, value: 0},
+			tokenValue{token: Number, value: 3},
+		}},
+		testCase{input: "1>>2", expectedVal: []tokenValue{
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: RightShift, value: 0},
+			tokenValue{token: Number, value: 2},
+		}},
+		testCase{input: ">><<", expectedVal: []tokenValue{
+			tokenValue{token: RightShift, value: 0},
+			tokenValue{token: LeftShift, value: 0},
+		}},
+		testCase{input: ">>>>", expectedVal: []tokenValue{
+			tokenValue{token: RightShift, value: 0},
+			tokenValue{token: RightShift, value: 0},
+		}},
+		testCase{input: "(1>>(2<<3))", expectedVal: []tokenValue{
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 1},
+			tokenValue{token: RightShift, value: 0},
+			tokenValue{token: OpenParentheses, value: 0},
+			tokenValue{token: Number, value: 2},
+			tokenValue{token: LeftShift, value: 0},
+			tokenValue{token: Number, value: 3},
+			tokenValue{token: CloseParentheses, value: 0},
+			tokenValue{token: CloseParentheses, value: 0},
+		}},
 	}
 	for _, c := range cases {
-		if val := tokenize(c.input); !strSliceEqual(c.expectedVal, val) {
+		val, err := tokenize(c.input)
+		if !tokenValueSliceEqual(c.expectedVal, val) {
 			t.Errorf("Unexpected value, input: %v, expect: %v, got: %v", c.input, c.expectedVal, val)
+		}
+		if !ErrorContains(err, c.expectedErr) {
+			t.Errorf("Unexpected err, input: %v, expect: %v, got: %v", c.input, c.expectedErr, err)
 		}
 	}
 }
@@ -207,6 +307,7 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "b1_0_0_0*2**2**2/2+3", expectedVal: 67, expectedErr: ""},
 		testCase{input: "b10 00*2**2**2/2+3", expectedVal: 67, expectedErr: ""},
 		testCase{input: "b10,00*2**2**2/2+3", expectedVal: 67, expectedErr: ""},
+
 		// TODO: some hex numbers sprinkled in using various formats \x 0x x ab, etc...
 
 		// TODO: more cases here... including error cases
