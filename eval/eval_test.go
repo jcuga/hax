@@ -308,6 +308,21 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "b10 00*2**2**2/2+3", expectedVal: 67, expectedErr: ""},
 		testCase{input: "b10,00*2**2**2/2+3", expectedVal: 67, expectedErr: ""},
 
+		testCase{input: "1^2", expectedVal: 3, expectedErr: ""},
+		testCase{input: "1^3", expectedVal: 2, expectedErr: ""},
+		testCase{input: "1&1", expectedVal: 1, expectedErr: ""},
+		testCase{input: "1&2", expectedVal: 0, expectedErr: ""},
+		testCase{input: "3&2", expectedVal: 2, expectedErr: ""},
+		testCase{input: "1 | 4", expectedVal: 5, expectedErr: ""},
+		testCase{input: "1|3", expectedVal: 3, expectedErr: ""},
+
+		testCase{input: "4|10>>3", expectedVal: 5, expectedErr: ""},
+		testCase{input: "4|10<<3", expectedVal: 84, expectedErr: ""},
+		testCase{input: "(4|10)<<3", expectedVal: 112, expectedErr: ""},
+		testCase{input: "4|(10<<3)", expectedVal: 84, expectedErr: ""},
+		testCase{input: "4|(10<<3)**2", expectedVal: 6404, expectedErr: ""},
+		testCase{input: "-4|(10<<3)**2", expectedVal: -4, expectedErr: ""},
+
 		// TODO: some hex numbers sprinkled in using various formats \x 0x x ab, etc...
 
 		// TODO: more cases here... including error cases
