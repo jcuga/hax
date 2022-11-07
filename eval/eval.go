@@ -34,6 +34,8 @@ type tokenValue struct {
 	value int64
 }
 
+type opFuncMap map[Token]func(int64, int64) (int64, error)
+
 func ParseHexDecOrBin(input string) (int64, error) {
 	if len(input) == 0 {
 		return 0, nil
@@ -140,6 +142,57 @@ func eval(tokens []tokenValue) (int64, error) {
 		return tokens[0].value, nil
 	}
 
+	opFuncs := opFuncMap{
+		// NOTE: absent are OpenParentheses, CloseParentheses, and UnaryBitwiseNot
+		// as the first two are not operators and the latter is a unary-only which
+		// will be handled in parseNumWithPossibleUnaryOperators().
+		Exponent: func(left, right int64) (int64, error) {
+			return int64(math.Pow(float64(left), float64(right))), nil
+		},
+		Multiply: func(left, right int64) (int64, error) {
+			return left * right, nil
+		},
+		Divide: func(left, right int64) (int64, error) {
+			if right == 0 {
+				return 0, errors.New("divide by zero")
+			}
+			return left / right, nil
+		},
+		Modulo: func(left, right int64) (int64, error) {
+			if right == 0 {
+				return 0, errors.New("modulo divide by zero")
+			}
+			return left % right, nil
+		},
+		Plus: func(left, right int64) (int64, error) {
+			return left + right, nil
+		},
+		Minus: func(left, right int64) (int64, error) {
+			return left - right, nil
+		},
+		RightShift: func(left, right int64) (int64, error) {
+			if right < 0 {
+				return 0, errors.New("negative bit shift")
+			}
+			return left >> right, nil
+		},
+		LeftShift: func(left, right int64) (int64, error) {
+			if right < 0 {
+				return 0, errors.New("negative bit shift")
+			}
+			return left << right, nil
+		},
+		BitwiseAnd: func(left, right int64) (int64, error) {
+			return left & right, nil
+		},
+		BitwiseXor: func(left, right int64) (int64, error) {
+			return left ^ right, nil
+		},
+		BitwiseOr: func(left, right int64) (int64, error) {
+			return left | right, nil
+		},
+	}
+
 	// First pass--solve parenthesis recursively, stack everything else for subsequent processing
 	reduced := make([]tokenValue, 0, len(tokens))
 	for {
@@ -183,7 +236,13 @@ func eval(tokens []tokenValue) (int64, error) {
 	}
 
 	// next pass: solve exponents
-	stack1 := make([]tokenValue, 0, len(reduced))
+	// NOTE: since expontent is stronger than unary operators, this is handled first, and
+	// differently than subsequent passes through tokens.
+	stack := make([]tokenValue, 0, len(reduced))
+	exponentFunc, ok := opFuncs[Exponent]
+	if !ok {
+		return 0, errors.New("no function for exponent operator")
+	}
 	for i := 0; i < len(reduced); i++ {
 		curToken := reduced[i]
 		switch curToken.token {
@@ -191,12 +250,12 @@ func eval(tokens []tokenValue) (int64, error) {
 			if i == len(reduced)-1 {
 				return 0, errors.New("dangling '**'")
 			}
-			if len(stack1) == 0 {
+			if len(stack) == 0 {
 				return 0, errors.New("mismatched '**'")
 			}
 			// pop exponent's base:
-			baseTokenValue := stack1[len(stack1)-1]
-			stack1 = stack1[:len(stack1)-1]
+			baseTokenValue := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
 			// NOTE: not using parseNumWithPossibleUnaryOperators as exponent comes before unary minus
 			if baseTokenValue.token != Number {
 				return 0, fmt.Errorf("expected number as exponent base, got token type: %d", baseTokenValue.token)
@@ -209,296 +268,110 @@ func eval(tokens []tokenValue) (int64, error) {
 				return 0, err
 			}
 			// stack result:
-			result := tokenValue{token: Number, value: int64(math.Pow(float64(base), float64(exponent)))}
-			stack1 = append(stack1, result)
-			i += tokensConsumed // skip over consumed exponent number
+			if result, err := exponentFunc(base, exponent); err == nil {
+				stack = append(stack, tokenValue{token: Number, value: result})
+				i += tokensConsumed // skip over consumed exponent number
+			} else {
+				return 0, err
+			}
 		default:
-			stack1 = append(stack1, curToken)
+			stack = append(stack, curToken)
 		}
 	}
 
-	// next pass: solve multiply/divide/modulo
-	if len(stack1) == 0 {
-		return 0, errors.New("missing tokens")
-	}
-	stack2 := make([]tokenValue, 0, len(stack1))
-	// Now that parentheses are dealt with, should begin with a number or number preceeded by unary operators
-	var num int64
+	// Apply operators in order of precedence,
+	// doing a pass for each set of left-to-right/equal precedence ops.
 	var err error
-	var tokensConsumed int
-	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack1)
-	stack1 = stack1[tokensConsumed:]
-	if err != nil {
+	if stack, err = applyOperators(map[Token]bool{Multiply: true, Divide: true, Modulo: true}, stack, opFuncs); err != nil {
 		return 0, err
 	}
-	stack2 = append(stack2, tokenValue{token: Number, value: num})
-	for {
-		if len(stack1) < 2 {
-			break
-		}
-		// get operator and number that follows it:
-		op := stack1[0]
-		if op.token == Number || op.token == UnaryBitwiseNot {
-			return 0, fmt.Errorf("expected operator, got: %v", op) // TOOD: better message here.
-			// NOTE: can be an operator that overlaps with unary like minus or plus
-		}
-		stack1 = stack1[1:]
-		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack1)
-		if err != nil {
-			return 0, err
-		}
-		stack1 = stack1[tokensConsumed:]
-		switch op.token {
-		case Multiply:
-			if len(stack2) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack2[len(stack2)-1]
-			stack2 = stack2[:len(stack2)-1]                                            // pop
-			stack2 = append(stack2, tokenValue{token: Number, value: top.value * num}) // push
-		case Divide:
-			if len(stack2) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack2[len(stack2)-1]
-			stack2 = stack2[:len(stack2)-1] // pop
-			if num == 0 {
-				return 0, errors.New("divide by zero")
-			}
-			stack2 = append(stack2, tokenValue{token: Number, value: top.value / num}) // push
-		case Modulo:
-			if len(stack2) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack2[len(stack2)-1]
-			stack2 = stack2[:len(stack2)-1] // pop
-			// NOTE: golang modulo works differently than python when negatives are involved.
-			// See: https://stackoverflow.com/a/43018347
-			// TLDR: when using a negative, ex: -9%10, python gives 1 whereas golang gives -9.
-			// Keeping the golang behavior but worth pointing out.
-			if num == 0 {
-				return 0, errors.New("modulo divide by zero")
-			}
-			stack2 = append(stack2, tokenValue{token: Number, value: top.value % num}) // push
-		case Number:
-			return 0, errors.New("got number where expeted operator")
-		default:
-			// Operator to deal with in later pass (ex: +/- or <<, >>, binary logicals, etc)
-			// stack num and op
-			stack2 = append(stack2, op)
-			stack2 = append(stack2, tokenValue{token: Number, value: num})
-		}
-	}
-
-	// next pass: add/subtract
-	stack3 := make([]tokenValue, 0, len(stack2))
-	// Now that parentheses are dealt with, should begin with a number or number preceeded by unary operators
-	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack2)
-	stack2 = stack2[tokensConsumed:]
-	if err != nil {
+	if stack, err = applyOperators(map[Token]bool{Plus: true, Minus: true}, stack, opFuncs); err != nil {
 		return 0, err
 	}
-	stack3 = append(stack3, tokenValue{token: Number, value: num})
-	for {
-		if len(stack2) < 2 {
-			break
-		}
-		// get operator and number that follows it:
-		op := stack2[0]
-		if op.token == Number || op.token == UnaryBitwiseNot {
-			return 0, fmt.Errorf("expected operator, got: %v", op) // TOOD: better message here.
-			// NOTE: can be an operator that overlaps with unary like minus or plus
-		}
-		stack2 = stack2[1:]
-		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack2)
-		if err != nil {
-			return 0, err
-		}
-		stack2 = stack2[tokensConsumed:]
-		switch op.token {
-		case Minus:
-			if len(stack3) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack3[len(stack3)-1]
-			stack3 = stack3[:len(stack3)-1]                                            // pop
-			stack3 = append(stack3, tokenValue{token: Number, value: top.value - num}) // push
-		case Plus:
-			if len(stack3) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack3[len(stack3)-1]
-			stack3 = stack3[:len(stack3)-1]                                            // pop
-			stack3 = append(stack3, tokenValue{token: Number, value: top.value + num}) // push
-		case Number:
-			return 0, errors.New("got number where expeted operator")
-		default:
-			// Operator to deal with in later pass (ex: <<, >>, binary logicals, etc)
-			// stack num and op
-			stack3 = append(stack3, op)
-			stack3 = append(stack3, tokenValue{token: Number, value: num})
-		}
-	}
-
-	// next pass: << and >>
-	stack4 := make([]tokenValue, 0, len(stack3))
-	// Now that parentheses are dealt with, should begin with a number or number preceeded by unary operators
-	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack3)
-	stack3 = stack3[tokensConsumed:]
-	if err != nil {
+	if stack, err = applyOperators(map[Token]bool{LeftShift: true, RightShift: true}, stack, opFuncs); err != nil {
 		return 0, err
 	}
-	stack4 = append(stack4, tokenValue{token: Number, value: num})
-	for {
-		if len(stack3) < 2 {
-			break
-		}
-		// get operator and number that follows it:
-		op := stack3[0]
-		if op.token == Number || op.token == UnaryBitwiseNot {
-			return 0, fmt.Errorf("expected operator, got: %v", op) // TOOD: better message here.
-			// NOTE: can be an operator that overlaps with unary like minus or plus
-		}
-		stack3 = stack3[1:]
-		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack3)
-		if err != nil {
-			return 0, err
-		}
-		stack3 = stack3[tokensConsumed:]
-		switch op.token {
-		case LeftShift:
-			if len(stack4) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack4[len(stack4)-1]
-			stack4 = stack4[:len(stack4)-1] // pop
-			if num < 0 {
-				return 0, errors.New("negative bit shift")
-			}
-			stack4 = append(stack4, tokenValue{token: Number, value: top.value << num}) // push
-		case RightShift:
-			if len(stack4) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack4[len(stack4)-1]
-			stack4 = stack4[:len(stack4)-1] // pop
-			if num < 0 {
-				return 0, errors.New("negative bit shift")
-			}
-			stack4 = append(stack4, tokenValue{token: Number, value: top.value >> num}) // push
-		case Number:
-			return 0, errors.New("got number where expeted operator")
-		default:
-			// Operator to deal with in later pass (ex: binary logicals)
-			// stack num and op
-			stack4 = append(stack4, op)
-			stack4 = append(stack4, tokenValue{token: Number, value: num})
-		}
-	}
-
-	// next pass: bitwise and (&)
-	stack5 := make([]tokenValue, 0, len(stack4))
-	// Now that parentheses are dealt with, should begin with a number or number preceeded by unary operators
-	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack4)
-	stack4 = stack4[tokensConsumed:]
-	if err != nil {
+	if stack, err = applyOperators(map[Token]bool{BitwiseAnd: true}, stack, opFuncs); err != nil {
 		return 0, err
 	}
-	stack5 = append(stack5, tokenValue{token: Number, value: num})
-	for {
-		if len(stack4) < 2 {
-			break
-		}
-		// get operator and number that follows it:
-		op := stack4[0]
-		if op.token == Number || op.token == UnaryBitwiseNot {
-			return 0, fmt.Errorf("expected operator, got: %v", op) // TOOD: better message here.
-			// NOTE: can be an operator that overlaps with unary like minus or plus
-		}
-		stack4 = stack4[1:]
-		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack4)
-		if err != nil {
-			return 0, err
-		}
-		stack4 = stack4[tokensConsumed:]
-		switch op.token {
-		case BitwiseAnd:
-			if len(stack5) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack5[len(stack5)-1]
-			stack5 = stack5[:len(stack5)-1]                                            // pop
-			stack5 = append(stack5, tokenValue{token: Number, value: top.value & num}) // push
-		case Number:
-			return 0, errors.New("got number where expeted operator")
-		default:
-			// Operator to deal with in later pass (ex: |, ^ etc)
-			// stack num and op
-			stack5 = append(stack5, op)
-			stack5 = append(stack5, tokenValue{token: Number, value: num})
-		}
-	}
-
-	// next pass: bitwise xor (^), or (|)
-	stack6 := make([]tokenValue, 0, len(stack5))
-	// Now that parentheses are dealt with, should begin with a number or number preceeded by unary operators
-	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack5)
-	stack5 = stack5[tokensConsumed:]
-	if err != nil {
+	if stack, err = applyOperators(map[Token]bool{BitwiseXor: true}, stack, opFuncs); err != nil {
 		return 0, err
 	}
-	stack6 = append(stack6, tokenValue{token: Number, value: num})
-	for {
-		if len(stack5) < 2 {
-			break
-		}
-		// get operator and number that follows it:
-		op := stack5[0]
-		if op.token == Number || op.token == UnaryBitwiseNot {
-			return 0, fmt.Errorf("expected operator, got: %v", op) // TOOD: better message here.
-			// NOTE: can be an operator that overlaps with unary like minus or plus
-		}
-		stack5 = stack5[1:]
-		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack5)
-		if err != nil {
-			return 0, err
-		}
-		stack5 = stack5[tokensConsumed:]
-		switch op.token {
-		case BitwiseOr:
-			if len(stack6) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack6[len(stack6)-1]
-			stack6 = stack6[:len(stack6)-1]                                            // pop
-			stack6 = append(stack6, tokenValue{token: Number, value: top.value | num}) // push
-		case BitwiseXor:
-			if len(stack6) < 1 {
-				return 0, fmt.Errorf("operator %v without preceeding number", op)
-			}
-			top := stack6[len(stack6)-1]
-			stack6 = stack6[:len(stack6)-1]                                            // pop
-			stack6 = append(stack6, tokenValue{token: Number, value: top.value ^ num}) // push
-		case Number:
-			return 0, errors.New("got number where expeted operator")
-		default:
-			// by this point, no other operators to handle, so anything else here is in error.
-			return 0, fmt.Errorf("got unexpected operator: %v", op)
-		}
+	if stack, err = applyOperators(map[Token]bool{BitwiseOr: true}, stack, opFuncs); err != nil {
+		return 0, err
 	}
 
-	if len(stack5) != 0 {
-		return 0, fmt.Errorf("dangling token(s): %v", stack5)
-	}
 	// Should now have a stack of only numbers, add them up to get answer:
 	val := int64(0)
-	for _, t := range stack6 {
+	for _, t := range stack {
 		if t.token != Number {
 			return 0, fmt.Errorf("expected only numbers, got token: %v", t)
 		}
 		val += t.value
 	}
 	return val, nil
+}
+
+func applyOperators(opSet map[Token]bool, stack []tokenValue, opFuncs opFuncMap) ([]tokenValue, error) {
+	updatedStack := make([]tokenValue, 0, len(stack))
+	if len(stack) == 0 {
+		return updatedStack, errors.New("missing tokens")
+	}
+	// Now that parentheses are dealt with, should begin with a number or number preceeded by unary operators
+	var num int64
+	var err error
+	var tokensConsumed int
+	num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack)
+	stack = stack[tokensConsumed:]
+	if err != nil {
+		return updatedStack, err
+	}
+	updatedStack = append(updatedStack, tokenValue{token: Number, value: num})
+	for {
+		if len(stack) < 2 {
+			break
+		}
+		// get operator and number that follows it:
+		op := stack[0]
+		if op.token == Number || op.token == UnaryBitwiseNot {
+			return updatedStack, fmt.Errorf("expected operator, got: %v", op) // TODO: better message here.
+			// NOTE: can be an operator that overlaps with unary like minus or plus, but can't be a unary-only one.
+		}
+		stack = stack[1:]
+		num, tokensConsumed, err = parseNumWithPossibleUnaryOperators(stack)
+		if err != nil {
+			return updatedStack, err
+		}
+		stack = stack[tokensConsumed:]
+
+		if op.token == Number {
+			return updatedStack, errors.New("got number where expeted operator")
+		}
+		if _, ok := opSet[op.token]; ok {
+			// have an operator we're tackling in this pass--apply it.
+			opFunc, ok := opFuncs[op.token]
+			if !ok {
+				return updatedStack, fmt.Errorf("no function for operator: %v", op.token)
+			}
+			top := updatedStack[len(updatedStack)-1]
+			updatedStack = updatedStack[:len(updatedStack)-1] // pop
+			if result, err := opFunc(top.value, num); err == nil {
+				updatedStack = append(updatedStack, tokenValue{token: Number, value: result}) // push
+			} else {
+				return updatedStack, err
+			}
+		} else {
+			// Operator to deal with in later pass...
+			// stack num and op
+			updatedStack = append(updatedStack, op)
+			updatedStack = append(updatedStack, tokenValue{token: Number, value: num})
+		}
+	}
+	// Should have consumed all of the original stack:
+	if len(stack) != 0 {
+		return updatedStack, fmt.Errorf("dangling token(s): %v", stack)
+	}
+	return updatedStack, nil
 }
 
 func tokenize(s string) ([]tokenValue, error) {
