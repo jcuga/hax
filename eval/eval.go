@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -129,6 +130,43 @@ func EvalExpression(s string) (int64, error) {
 		return 0, err
 	}
 	return ans, nil
+}
+
+func DisplayEvalResult(val int64) error {
+	fmt.Fprintf(os.Stdout, "%d\n", val)
+	if (val >= math.MinInt8 && val <= math.MaxInt8) || (val >= 0 && val < math.MaxUint8) {
+		displayHexAndBinaryValue(val, 8)
+	} else if (val >= math.MinInt16 && val <= math.MaxInt16) || (val >= 0 && val < math.MaxUint16) {
+		displayHexAndBinaryValue(val, 16)
+	} else if (val >= math.MinInt32 && val <= math.MaxInt32) || (val >= 0 && val < math.MaxUint32) {
+		displayHexAndBinaryValue(val, 32)
+	} else {
+		displayHexAndBinaryValue(val, 64)
+	}
+	return nil // TODO: any things that can fail to cause error here?
+}
+
+func displayHexAndBinaryValue(val int64, bits int) {
+	// fmt.Fprintf(os.Stdout, "\n%d Bits\n", bits)
+	for i := (bits / 8) - 1; i >= 0; i-- {
+		fmt.Fprintf(os.Stdout, "%02X ", val>>(8*i)&0xff)
+	}
+	fmt.Fprintf(os.Stdout, "\n")
+
+	for i := (bits - 1); i >= 0; i-- {
+		if val&(1<<i) != 0 {
+			fmt.Fprintf(os.Stdout, "%d", 1)
+		} else {
+			fmt.Fprintf(os.Stdout, "%d", 0)
+		}
+		if i%4 == 0 {
+			fmt.Fprintf(os.Stdout, " ")
+		}
+		if i%8 == 0 {
+			fmt.Fprintf(os.Stdout, " ")
+		}
+	}
+	fmt.Fprintf(os.Stdout, "\n")
 }
 
 func eval(tokens []tokenValue) (int64, error) {

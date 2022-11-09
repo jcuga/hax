@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jcuga/hax/eval"
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
 	"github.com/jcuga/hax/output"
@@ -67,6 +68,10 @@ func main() {
 	flag.BoolVar(&omitZeroPages, "omit-zeros", false, "Omit pages that are entirely zero in hexedit display.") // TODO: remember to add to custom usage output.
 	flag.BoolVar(&omitZeroPages, "omit", false, "")
 
+	var calcEval string
+	flag.StringVar(&calcEval, "calc", "", "Calculate/eval an expression.")
+	flag.StringVar(&calcEval, "eval", "", "")
+
 	flag.Usage = func() {
 		w := flag.CommandLine.Output() // may be os.Stderr - but not necessarily
 		// NOTE: custom stuff before
@@ -116,6 +121,8 @@ func main() {
 
 		fmt.Fprintf(w, "\nTODO: optional commands like conv to num, str, unicode, binary, math, etc.\n")
 
+		// TODO: calc/eval, other commands, etc
+
 		fmt.Fprintf(w, "\nExamples:\n\nTodo use -e, --examples to see examples\n")
 	}
 
@@ -128,6 +135,22 @@ func main() {
 		fmt.Printf("Unhandled positional args (%d)\n", flag.NArg())
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// TODO: once enough, put this in a func?
+	// Handle commands that preempt the hex editor like features:
+	if len(calcEval) > 0 {
+		val, err := eval.EvalExpression(calcEval)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+		if eval.DisplayEvalResult(val); err == nil {
+			os.Exit(0)
+		} else {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
