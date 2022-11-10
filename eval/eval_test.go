@@ -331,14 +331,18 @@ func Test_Eval_EvalExpression(t *testing.T) {
 		testCase{input: "4|(10<<3)**2", expectedVal: 6404, expectedErr: ""},
 		testCase{input: "-4|(10<<3)**2", expectedVal: -4, expectedErr: ""},
 
-		// TODO: some hex numbers sprinkled in using various formats \x 0x x ab, etc...
-
-		// TODO: more cases here... including error cases
-
 		testCase{input: "1/0", expectedVal: 0, expectedErr: "divide by zero"},
 		testCase{input: "1%0", expectedVal: 0, expectedErr: "modulo divide by zero"},
 		testCase{input: "0%0", expectedVal: 0, expectedErr: "modulo divide by zero"},
 		testCase{input: "0/0", expectedVal: 0, expectedErr: "divide by zero"},
+
+		testCase{input: "+", expectedVal: 0, expectedErr: "expected number, got token: +"},
+		testCase{input: "1+", expectedVal: 0, expectedErr: "dangling token: +"},
+		testCase{input: "1++", expectedVal: 0, expectedErr: "dangling operator: +"},
+
+		testCase{input: "1+2)", expectedVal: 0, expectedErr: "mismatched ')'"},
+		testCase{input: "1+(2", expectedVal: 0, expectedErr: "no closing ')'"},
+		testCase{input: "1+)2", expectedVal: 0, expectedErr: "mismatched ')'"},
 	}
 	for _, c := range cases {
 		val, err := EvalExpression(c.input)

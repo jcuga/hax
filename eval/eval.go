@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// TODO: make a string so can print more meaningful errors? Then define consts using appropriate string...
 type Token int
 
 const (
@@ -30,9 +29,61 @@ const (
 	BitwiseXor
 )
 
+// String provided for better error messages:
+func (t *Token) String() string {
+	if t == nil {
+		return "nil"
+	}
+	switch *t {
+	case OpenParentheses:
+		return "("
+	case CloseParentheses:
+		return ")"
+	case Number:
+		return "number"
+	case Plus:
+		return "+"
+	case Minus:
+		return "-"
+	case UnaryBitwiseNot:
+		return "~"
+	case Multiply:
+		return "*"
+	case Exponent:
+		return "**"
+	case Divide:
+		return "/"
+	case Modulo:
+		return "%"
+	case LeftShift:
+		return "<<"
+	case RightShift:
+		return ">>"
+	case BitwiseAnd:
+		return "&"
+	case BitwiseOr:
+		return "|"
+	case BitwiseXor:
+		return "^"
+	default:
+		return "unknown"
+	}
+}
+
 type tokenValue struct {
 	token Token
 	value int64
+}
+
+// String provided for better error messages:
+func (tv *tokenValue) String() string {
+	if tv == nil {
+		return "nil"
+	}
+	if tv.token == Number {
+		return strconv.Itoa(int(tv.value))
+	}
+	return tv.token.String()
 }
 
 type opFuncMap map[Token]func(int64, int64) (int64, error)
@@ -92,10 +143,13 @@ func parseNumWithPossibleUnaryOperators(tokens []tokenValue) (int64, int, error)
 			numTokensConsumed++
 		} else {
 			if tokens[i].token != Number {
-				return 0, 0, fmt.Errorf("expected number, got token of type: %d", tokens[i].token)
+				return 0, 0, fmt.Errorf("expected number, got token: %s", tokens[i].token.String())
 			}
 			break
 		}
+	}
+	if numTokensConsumed >= len(tokens) {
+		return 0, 0, fmt.Errorf("dangling operator: %s", tokens[len(tokens)-1].String())
 	}
 	// Now on a token of type Number
 	num := tokens[numTokensConsumed].value
@@ -113,7 +167,7 @@ func parseNumWithPossibleUnaryOperators(tokens []tokenValue) (int64, int, error)
 		default:
 			// hitting this implies programming error above:
 			// not using same set of unary operators here versus above conditional
-			return 0, 0, fmt.Errorf("unhandled unary token type: %d", u)
+			return 0, 0, fmt.Errorf("unhandled unary token: %s", u.String())
 		}
 
 	}
@@ -175,7 +229,7 @@ func eval(tokens []tokenValue) (int64, error) {
 	}
 	if len(tokens) == 1 { // trivial single number
 		if tokens[0].token != Number {
-			return 0, fmt.Errorf("expected number, got token of type: %d", tokens[0].token)
+			return 0, fmt.Errorf("expected number, got token: %s", tokens[0].token.String())
 		}
 		return tokens[0].value, nil
 	}
@@ -296,7 +350,7 @@ func eval(tokens []tokenValue) (int64, error) {
 			stack = stack[:len(stack)-1]
 			// NOTE: not using parseNumWithPossibleUnaryOperators as exponent comes before unary minus
 			if baseTokenValue.token != Number {
-				return 0, fmt.Errorf("expected number as exponent base, got token type: %d", baseTokenValue.token)
+				return 0, fmt.Errorf("expected number as exponent base, got token: %s", baseTokenValue.token.String())
 			}
 			// in other words -2^4 is -8 since it's really -(2^4) whereas (-2)^4 is 8...
 			base := baseTokenValue.value
@@ -343,7 +397,7 @@ func eval(tokens []tokenValue) (int64, error) {
 	val := int64(0)
 	for _, t := range stack {
 		if t.token != Number {
-			return 0, fmt.Errorf("expected only numbers, got token: %v", t)
+			return 0, fmt.Errorf("expected only numbers, got token: %s", t.String())
 		}
 		val += t.value
 	}
@@ -372,7 +426,7 @@ func applyOperators(opSet map[Token]bool, stack []tokenValue, opFuncs opFuncMap)
 		// get operator and number that follows it:
 		op := stack[0]
 		if op.token == Number || op.token == UnaryBitwiseNot {
-			return updatedStack, fmt.Errorf("expected operator, got: %v", op) // TODO: better message here.
+			return updatedStack, fmt.Errorf("expected operator, got: %s", op.String())
 			// NOTE: can be an operator that overlaps with unary like minus or plus, but can't be a unary-only one.
 		}
 		stack = stack[1:]
@@ -389,7 +443,7 @@ func applyOperators(opSet map[Token]bool, stack []tokenValue, opFuncs opFuncMap)
 			// have an operator we're tackling in this pass--apply it.
 			opFunc, ok := opFuncs[op.token]
 			if !ok {
-				return updatedStack, fmt.Errorf("no function for operator: %v", op.token)
+				return updatedStack, fmt.Errorf("no function for operator: %s", op.token.String())
 			}
 			top := updatedStack[len(updatedStack)-1]
 			updatedStack = updatedStack[:len(updatedStack)-1] // pop
@@ -407,7 +461,7 @@ func applyOperators(opSet map[Token]bool, stack []tokenValue, opFuncs opFuncMap)
 	}
 	// Should have consumed all of the original stack:
 	if len(stack) != 0 {
-		return updatedStack, fmt.Errorf("dangling token(s): %v", stack)
+		return updatedStack, fmt.Errorf("dangling token: %s", stack[0].String())
 	}
 	return updatedStack, nil
 }
