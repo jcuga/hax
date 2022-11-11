@@ -72,6 +72,14 @@ func main() {
 	flag.StringVar(&calcEval, "calc", "", "Calculate/eval an expression.")
 	flag.StringVar(&calcEval, "eval", "", "")
 
+	var minStringLen int
+	flag.IntVar(&minStringLen, "min-str", 3, "Min lenght of string to output for strings output mode.")
+	flag.IntVar(&minStringLen, "minstr", 3, "")
+
+	var maxStringLen int
+	flag.IntVar(&maxStringLen, "max-str", -1, "Max lenght of string to output for strings output mode.")
+	flag.IntVar(&maxStringLen, "maxstr", -1, "")
+
 	flag.Usage = func() {
 		w := flag.CommandLine.Output() // may be os.Stderr - but not necessarily
 		// NOTE: custom stuff before
@@ -122,6 +130,7 @@ func main() {
 		fmt.Fprintf(w, "\nTODO: optional commands like conv to num, str, unicode, binary, math, etc.\n")
 
 		// TODO: calc/eval, other commands, etc
+		// TODO: min string len doc
 
 		fmt.Fprintf(w, "\nExamples:\n\nTodo use -e, --examples to see examples\n")
 	}
@@ -155,7 +164,7 @@ func main() {
 
 	opts, err := options.New(inFilename, inputStr, inMode, outMode,
 		offset, limit, colWidth, colSubWidth, pageSize, alwaysPretty,
-		quiet, yes, hideZeros, omitZeroPages)
+		quiet, yes, hideZeros, omitZeroPages, minStringLen, maxStringLen)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)

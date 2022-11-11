@@ -17,6 +17,7 @@ const (
 	HexList   // List of hex bytes that can be used in an array literal: "0xAB, 0xCD, 0xEF"
 	Base64
 	Display
+	Strings
 )
 
 type DisplayOptions struct {
@@ -24,9 +25,11 @@ type DisplayOptions struct {
 	SubWidth       int // add space after every SubWidth bytes
 	PageSize       int
 	Pretty         bool
-	NoAscii        bool
+	Quiet          bool
 	HideZerosBytes bool
 	OmitZeroPages  bool
+	MinStringLen   int // min len of strings to include in strings output
+	MaxStringLen   int
 }
 
 type Options struct {
@@ -54,7 +57,7 @@ func parseInputMode(mode string) (IOMode, error) {
 		return HexList, nil
 	case "base64", "b64", "b":
 		return Base64, nil
-	// NOTE: not valid input modes: Display
+	// NOTE: not valid input modes: Display, Strings
 	default:
 		return -1, fmt.Errorf("Not a valid input mode: %q.", mode)
 	}
@@ -67,7 +70,7 @@ func parseOutputMode(mode string) (IOMode, error) {
 		return Raw, nil
 	case "hex", "h":
 		return Hex, nil
-	case "hex-string", "hex-str", "hexstr", "hs", "str", "s":
+	case "hex-string", "hex-str", "hexstr", "hs":
 		return HexString, nil
 	case "hex-list", "hexlist", "hl", "list", "l":
 		return HexList, nil
@@ -75,6 +78,8 @@ func parseOutputMode(mode string) (IOMode, error) {
 		return Base64, nil
 	case "display", "d":
 		return Display, nil
+	case "strings", "string", "str", "strs", "s":
+		return Strings, nil
 	default:
 		return -1, fmt.Errorf("Not a valid output mode: %q.", mode)
 	}
@@ -82,16 +87,19 @@ func parseOutputMode(mode string) (IOMode, error) {
 
 // TODO: any error text here needs arg names to update those in main if they've changed during development!
 func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubWidth,
-	pageSize string, alwaysPretty, quiet, yes, hideZeros, omitZeroPages bool) (Options, error) {
+	pageSize string, alwaysPretty, quiet, yes, hideZeros, omitZeroPages bool,
+	minStringLen, maxStringLen int) (Options, error) {
 
 	opts := Options{
 		Filename:  inFilename,
 		InputData: inputStr,
 		Display: DisplayOptions{
 			Pretty:         alwaysPretty,
-			NoAscii:        quiet,
+			Quiet:          quiet,
 			HideZerosBytes: hideZeros,
 			OmitZeroPages:  omitZeroPages,
+			MinStringLen:   minStringLen,
+			MaxStringLen:   maxStringLen,
 		},
 		Yes: yes,
 	}
@@ -199,6 +207,15 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 	} else {
 		return opts, fmt.Errorf(
 			"Failed to parse --page/-p value %q, error: %v", pageSize, err)
+	}
+
+	if opts.Display.MaxStringLen < 0 {
+		opts.Display.MaxStringLen = math.MaxInt32
+	}
+
+	if opts.Display.MaxStringLen < opts.Display.MinStringLen {
+		return opts, fmt.Errorf("Invalid --max-str: %d, must be > --min-str: %d",
+			opts.Display.MaxStringLen, opts.Display.MinStringLen)
 	}
 
 	return opts, nil

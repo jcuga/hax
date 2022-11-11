@@ -32,6 +32,8 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bo
 		outputHexStringOrList(w, reader, isPipe, opts)
 	case options.Raw:
 		outputRaw(w, reader, isPipe, opts)
+	case options.Strings:
+		outputStrings(w, reader, isPipe, opts)
 	default:
 		return fmt.Errorf("Unsupported or not implemented output mode: %v", opts.OutputMode)
 	}

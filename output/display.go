@@ -136,7 +136,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 			}
 		}
 		fmt.Fprintf(writer, "\n%15s%s", "", offsetPaddingWhitespace)
-		if !opts.Display.NoAscii {
+		if !opts.Display.Quiet {
 			// Print ascii
 			for i := 0; i < m; i++ {
 				if opts.Display.SubWidth > 0 && i > 0 && ((row != 0 && i%opts.Display.SubWidth == 0) || (row == 0 && (i+int(offsetPadding))%opts.Display.SubWidth == 0)) {
