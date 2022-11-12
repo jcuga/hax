@@ -42,7 +42,7 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 		}
 		if n == 0 {
 			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty)
-			fmt.Fprintf(writer, outBuilder.String())
+			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
 		}
@@ -58,20 +58,20 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 			}
 		}
 
-		fmt.Fprintf(writer, outBuilder.String())
+		fmt.Fprint(writer, outBuilder.String())
 		outBuilder.Reset()
 
 		bytesRead += int64(n)
 		if bytesRead >= opts.Limit {
 			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty)
-			fmt.Fprintf(writer, outBuilder.String())
+			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
 		}
 	}
 	if !isPipe {
 		// add newline to end of terminal output
-		fmt.Fprintf(writer, "\n")
+		fmt.Fprint(writer, "\n")
 	}
 }
 

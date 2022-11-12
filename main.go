@@ -68,9 +68,14 @@ func main() {
 	flag.BoolVar(&omitZeroPages, "omit-zeros", false, "Omit pages that are entirely zero in hexedit display.") // TODO: remember to add to custom usage output.
 	flag.BoolVar(&omitZeroPages, "omit", false, "")
 
+	// NOTE: using this to denote an unset value instead of checking further below if len(calcEval) > 0
+	// as one could pass an empty string or a non existant bash var.  If that were to occur the default
+	// behavior would be to wait for stdin and display hexedit output. Instead, use placeholder and
+	// then let the calc command complain about blank data.
+	calcCmdUnset := "unset"
 	var calcEval string
-	flag.StringVar(&calcEval, "calc", "", "Calculate/eval an expression.")
-	flag.StringVar(&calcEval, "eval", "", "")
+	flag.StringVar(&calcEval, "calc", calcCmdUnset, "Calculate/eval an expression.")
+	flag.StringVar(&calcEval, "eval", calcCmdUnset, "")
 
 	var minStringLen int
 	flag.IntVar(&minStringLen, "min-str", 3, "Min lenght of string to output for strings output mode.")
@@ -148,7 +153,7 @@ func main() {
 
 	// TODO: once enough, put this in a func?
 	// Handle commands that preempt the hex editor like features:
-	if len(calcEval) > 0 {
+	if calcEval != calcCmdUnset {
 		val, err := eval.EvalExpression(calcEval)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
