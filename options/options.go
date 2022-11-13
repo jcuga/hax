@@ -8,7 +8,12 @@ import (
 	"github.com/jcuga/hax/eval"
 )
 
+const (
+	OutputBufferSize = 1024 * 100 // TODO: 100kb buffer--adequate?
+)
+
 type IOMode int
+type Command int
 
 const (
 	Raw IOMode = iota
@@ -17,8 +22,26 @@ const (
 	HexList   // List of hex bytes that can be used in an array literal: "0xAB, 0xCD, 0xEF"
 	Base64
 	Display
+)
+
+const (
+	NoCommand Command = iota
+	Calc
 	Strings
 )
+
+func CommandToString(cmd Command) string {
+	switch cmd {
+	case NoCommand:
+		return "none"
+	case Calc:
+		return "calc"
+	case Strings:
+		return "strings"
+	default:
+		return "unknown"
+	}
+}
 
 type DisplayOptions struct {
 	Width          int
@@ -28,9 +51,6 @@ type DisplayOptions struct {
 	Quiet          bool
 	HideZerosBytes bool
 	OmitZeroPages  bool
-	// TODO: these will get removed in favor of cmd pattern
-	MinStringLen int // min len of strings to include in strings output
-	MaxStringLen int
 }
 
 type Options struct {
@@ -71,9 +91,6 @@ type RawDisplayOptions struct {
 	Quiet          bool
 	HideZerosBytes bool
 	OmitZeroPages  bool
-	// TODO: these will get removed in favor of cmd pattern
-	MinStringLen int // min len of strings to include in strings output
-	MaxStringLen int
 }
 
 func parseInputMode(mode string) (IOMode, error) {
@@ -110,8 +127,6 @@ func parseOutputMode(mode string) (IOMode, error) {
 		return Base64, nil
 	case "display", "d":
 		return Display, nil
-	case "strings", "string", "str", "strs", "s":
-		return Strings, nil
 	default:
 		return -1, fmt.Errorf("Not a valid output mode: %q.", mode)
 	}
@@ -128,8 +143,6 @@ func New(rawOpts RawOptions) (Options, error) {
 			Quiet:          rawOpts.Display.Quiet,
 			HideZerosBytes: rawOpts.Display.HideZerosBytes,
 			OmitZeroPages:  rawOpts.Display.OmitZeroPages,
-			MinStringLen:   rawOpts.Display.MinStringLen,
-			MaxStringLen:   rawOpts.Display.MaxStringLen,
 		},
 		Yes: rawOpts.Yes,
 	}
@@ -238,15 +251,6 @@ func New(rawOpts RawOptions) (Options, error) {
 	} else {
 		return opts, fmt.Errorf(
 			"Failed to parse --page/-p value %q, error: %v", rawOpts.Display.PageSize, err)
-	}
-
-	if opts.Display.MaxStringLen < 0 {
-		opts.Display.MaxStringLen = math.MaxInt32
-	}
-
-	if opts.Display.MaxStringLen < opts.Display.MinStringLen {
-		return opts, fmt.Errorf("Invalid --max-str: %d, must be > --min-str: %d",
-			opts.Display.MaxStringLen, opts.Display.MinStringLen)
 	}
 
 	return opts, nil

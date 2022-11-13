@@ -39,7 +39,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, reader, false, opts1)
+	Output(&writer, reader, false, opts1, options.NoCommand, []string{})
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hexlist output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -68,7 +68,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 			InputMode:  options.HexList,
 			OutputMode: options.Raw,
 			Limit:      math.MaxInt64,
-		})
+		}, options.NoCommand, []string{})
 	result = writer.String()
 	if result != original {
 		t.Fatalf("Unexpected raw output.\nExpected:\n%q\n\ngot:\n%q", original, result)

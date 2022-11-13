@@ -39,9 +39,8 @@ func Test_Output_displayHex(t *testing.T) {
 	}
 	if closer != nil {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
-
 	}
-	Output(&writer, reader, true, opts1) // NOTE: isPipe:true for plain text instead of terminal colors
+	Output(&writer, reader, true, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -79,7 +78,7 @@ func Test_Output_displayHex_HideZeroBytes(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, reader, true, opts1) // NOTE: isPipe:true for plain text instead of terminal colors
+	Output(&writer, reader, true, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -117,7 +116,7 @@ func Benchmark_output_displayHex(b *testing.B) {
 		if closer != nil {
 			panic(fmt.Sprintf("Expect nil closer when GetInput on string data, got: %v", closer))
 		}
-		Output(&writer, reader, true, opts1) // NOTE: isPipe:true for plain text instead of terminal colors
+		Output(&writer, reader, true, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 		result := writer.String()
 		if result != expected {
 			panic(fmt.Sprintf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result))
@@ -157,7 +156,7 @@ func Benchmark_output_displayHex_HideZeroBytes(b *testing.B) {
 			panic(fmt.Sprintf("Expect nil closer when GetInput on string data, got: %v", closer))
 
 		}
-		Output(&writer, reader, true, opts1) // NOTE: isPipe:true for plain text instead of terminal colors
+		Output(&writer, reader, true, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 		result := writer.String()
 		if result != expected {
 			panic(fmt.Sprintf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result))

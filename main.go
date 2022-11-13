@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jcuga/hax/eval"
 	"github.com/jcuga/hax/input"
@@ -44,6 +45,7 @@ func main() {
 	flag.StringVar(&rawOpts.Display.PageSize, "p", "4", "")
 	flag.BoolVar(&rawOpts.Display.Pretty, "pretty", false, "Always pretty-print/style output.")
 	flag.BoolVar(&rawOpts.Display.Quiet, "no-ascii", false, "Skip outputting ascii below each row of bytes.")
+	flag.BoolVar(&rawOpts.Display.Quiet, "quiet", false, "")
 	flag.BoolVar(&rawOpts.Display.Quiet, "q", false, "")
 
 	flag.BoolVar(&rawOpts.Yes, "yes", false, "Auto-answer yes to any prompts.") // TODO: remember to add to custom usage output.
@@ -54,18 +56,6 @@ func main() {
 
 	flag.BoolVar(&rawOpts.Display.OmitZeroPages, "omit-zeros", false, "Omit pages that are entirely zero in hexedit display.") // TODO: remember to add to custom usage output.
 	flag.BoolVar(&rawOpts.Display.OmitZeroPages, "omit", false, "")
-
-	// TODO: replace this and the opts.display.min/max str len with cmd pattern
-	calcCmdUnset := "unset"
-	var calcEval string
-	flag.StringVar(&calcEval, "calc", calcCmdUnset, "Calculate/eval an expression.")
-	flag.StringVar(&calcEval, "eval", calcCmdUnset, "")
-
-	flag.IntVar(&rawOpts.Display.MinStringLen, "min-str", 3, "Min lenght of string to output for strings output mode.")
-	flag.IntVar(&rawOpts.Display.MinStringLen, "minstr", 3, "")
-
-	flag.IntVar(&rawOpts.Display.MaxStringLen, "max-str", -1, "Max lenght of string to output for strings output mode.")
-	flag.IntVar(&rawOpts.Display.MaxStringLen, "maxstr", -1, "")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output() // may be os.Stderr - but not necessarily
@@ -124,27 +114,32 @@ func main() {
 
 	flag.Parse()
 
-	// Don't allow any positional args--currently everything is a flag.
-	// TODO: update this to only enforce when given opts don't allow positional
-	// if/when opts with positional args are added.
+	cmd := options.NoCommand
+	cmdArgs := []string{}
 	if flag.NArg() > 0 {
-		fmt.Printf("Unhandled positional args (%d)\n", flag.NArg())
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	// TODO: once enough, put this in a func?
-	// Handle commands that preempt the hex editor like features:
-	if calcEval != calcCmdUnset {
-		val, err := eval.EvalExpression(calcEval)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
-		if eval.DisplayEvalResult(val); err == nil {
-			os.Exit(0)
-		} else {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+		args := flag.Args()
+		cmdArgs = args[1:]
+		// NOTE: some of these commands (like "calc") will run and exit here,
+		// whereas others will tickle down to the input/output logic below (ex: strings)
+		switch strings.ToLower(args[0]) {
+		case "calc", "eval":
+			cmd = options.Calc
+			expression := strings.Join(cmdArgs, "")
+			val, err := eval.EvalExpression(expression)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
+			if eval.DisplayEvalResult(val); err == nil {
+				os.Exit(0)
+			} else {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
+		case "strings", "string", "str", "strs", "s":
+			cmd = options.Strings
+		default:
+			fmt.Fprintf(os.Stderr, "Unrecognized command: %q\n", args[0])
 			os.Exit(1)
 		}
 	}
@@ -164,21 +159,14 @@ func main() {
 		defer inCloser.Close()
 	}
 
-	// fmt.Printf("Parsed Options: %v\n", opts) // TODO: remove me
-
 	isPipe := false
 	fi, _ := os.Stdout.Stat()
 	if (fi.Mode() & os.ModeCharDevice) == 0 {
 		isPipe = true
 	}
 
-	// TODO: do this only if there's no other cmd/func (ex: interpret as numeric, insert, replace, etc)
-	if err := output.Output(os.Stdout, inReader, isPipe, opts); err != nil {
+	if err := output.Output(os.Stdout, inReader, isPipe, opts, cmd, cmdArgs); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-
-	// TODO: implement various command/utility funcs (parse numeric, str, unicode, math)
-	// TODO: implement edit/insert/replace contents
-	// TODO: binary level stuff... display, maths...
 }

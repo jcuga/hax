@@ -11,7 +11,7 @@ import (
 )
 
 func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
-	buf := make([]byte, outBufferSize)
+	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the base64 output fills.
 	var outWriter io.Writer
 	outWriter = writer
@@ -36,7 +36,7 @@ func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, isP
 		var n int
 		var err error
 		// only read up to limit many bytes:
-		if opts.Limit-bytesWritten < outBufferSize {
+		if opts.Limit-bytesWritten < options.OutputBufferSize {
 			n, err = reader.Read(buf[:opts.Limit-bytesWritten])
 		} else {
 			n, err = reader.Read(buf)

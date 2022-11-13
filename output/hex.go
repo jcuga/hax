@@ -12,7 +12,7 @@ import (
 )
 
 func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
-	buf := make([]byte, outBufferSize)
+	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
 	var outWriter io.Writer
@@ -40,7 +40,7 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 		var n int
 		var err error
 		// only read up to limit many bytes:
-		if opts.Limit-bytesWritten < outBufferSize {
+		if opts.Limit-bytesWritten < options.OutputBufferSize {
 			n, err = reader.Read(buf[:opts.Limit-bytesWritten])
 		} else {
 			n, err = reader.Read(buf)
@@ -64,7 +64,7 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 }
 
 func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
-	buf := make([]byte, outBufferSize)
+	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
 	var outWriter io.Writer
@@ -101,7 +101,7 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 		var n int
 		var err error
 		// only read up to limit many bytes:
-		if opts.Limit-bytesWritten < outBufferSize {
+		if opts.Limit-bytesWritten < options.OutputBufferSize {
 			n, err = reader.Read(buf[:opts.Limit-bytesWritten])
 		} else {
 			n, err = reader.Read(buf)

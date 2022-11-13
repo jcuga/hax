@@ -5,20 +5,29 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/jcuga/hax/commands"
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
 )
 
-const (
-	outBufferSize = 1024 * 100 // TODO: 100kb buffer--adequate?
-)
-
-func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) error {
+func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool,
+	opts options.Options, cmd options.Command, cmdArgs []string) error {
 	// use buffered writer for better performance.
 	// ex: displaying line by line to stdout or a file when displaying hex is slow.
 	// buffering the writes significantly speeds up the hex display output.
 	w := bufio.NewWriter(writer)
 	defer w.Flush()
+
+	if cmd != options.NoCommand {
+		switch cmd {
+		case options.Strings:
+			commands.Strings(w, reader, isPipe, opts, cmdArgs)
+			return nil
+		default:
+			return fmt.Errorf("Unhandled command: %q", options.CommandToString(cmd))
+		}
+	}
+
 	switch opts.OutputMode {
 	case options.Base64:
 		outputBase64(w, reader, isPipe, opts)
@@ -32,8 +41,6 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bo
 		outputHexStringOrList(w, reader, isPipe, opts)
 	case options.Raw:
 		outputRaw(w, reader, isPipe, opts)
-	case options.Strings:
-		outputStrings(w, reader, isPipe, opts)
 	default:
 		return fmt.Errorf("Unsupported or not implemented output mode: %v", opts.OutputMode)
 	}

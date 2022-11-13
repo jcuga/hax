@@ -1,22 +1,55 @@
-package output
+package commands
 
 import (
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 
+	"github.com/jcuga/hax/eval"
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
 )
 
-// TODO: optional offset
-// TODO: optional min widht?
-// TODO: optional coloring of offset?
+func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options,
+	cmdOptions []string) {
+	minStringLen := 0
+	maxStringLen := math.MaxInt32
+	if len(cmdOptions) > 2 {
+		fmt.Fprintf(os.Stderr, "Too many arguments for command 'strings', expect 0-2, got: %d\n", len(cmdOptions))
+		fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
+		os.Exit(1)
+	}
+	if len(cmdOptions) > 1 {
+		if parsedMax, err := eval.ParseHexDecOrBin(cmdOptions[1]); err == nil {
+			maxStringLen = int(parsedMax)
+		} else {
+			fmt.Fprintf(os.Stderr, "Command: 'strings', failed to parse max length arg: %q, err: %v\n",
+				cmdOptions[1], err)
+			fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
+			os.Exit(1)
+		}
+	}
+	if len(cmdOptions) > 0 {
+		if parsedMin, err := eval.ParseHexDecOrBin(cmdOptions[0]); err == nil {
+			minStringLen = int(parsedMin)
+		} else {
+			fmt.Fprintf(os.Stderr, "Command: 'strings', failed to parse min length arg: %q, err: %v\n",
+				cmdOptions[0], err)
+			fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
+			os.Exit(1)
+		}
+	}
+	if minStringLen > maxStringLen || maxStringLen < 1 {
+		fmt.Fprintf(os.Stderr, "Command: 'strings', invalid min/max len args. min: %d, max: %d. Must have min < max and max > 0\n",
+			minStringLen, maxStringLen)
+		fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
+		os.Exit(1)
+	}
 
-func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	showPretty := !isPipe || opts.Display.Pretty
-	buf := make([]byte, outBufferSize)
+	buf := make([]byte, options.OutputBufferSize)
 	bytesRead := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
 	// buffer output
@@ -41,7 +74,7 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 		var n int
 		var err error
 		// only read up to limit many bytes:
-		if opts.Limit-bytesRead < outBufferSize {
+		if opts.Limit-bytesRead < options.OutputBufferSize {
 			n, err = reader.Read(buf[:opts.Limit-bytesRead])
 		} else {
 			n, err = reader.Read(buf)
@@ -52,7 +85,7 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 			os.Exit(1)
 		}
 		if n == 0 {
-			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty)
+			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
 			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
@@ -65,7 +98,7 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 				}
 				curStrBuilder.WriteByte(buf[i])
 			} else {
-				flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty)
+				flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
 			}
 		}
 
@@ -74,7 +107,7 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 
 		bytesRead += int64(n)
 		if bytesRead >= opts.Limit {
-			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty)
+			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
 			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
@@ -82,11 +115,12 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 	}
 }
 
-func flushCurString(curStrBuilder, outBuilder *strings.Builder, opts *options.Options, curStringStart *int64, showPretty bool) {
+func flushCurString(curStrBuilder, outBuilder *strings.Builder, opts *options.Options, curStringStart *int64, showPretty bool,
+	minStringLen, maxStringLen int) {
 	if curStrBuilder.Len() > 0 {
 		orig := curStrBuilder.String()
 		trimmed := strings.TrimSpace(orig)
-		if len(trimmed) >= opts.Display.MinStringLen && len(trimmed) <= opts.Display.MaxStringLen {
+		if len(trimmed) > 0 && len(trimmed) >= minStringLen && len(trimmed) <= maxStringLen {
 			// account for any preceeding whitespace when showing offset to start of displayed string
 			if len(orig) > len(trimmed) {
 				idx := strings.IndexByte(orig, trimmed[0])
