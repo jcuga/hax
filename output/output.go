@@ -23,6 +23,9 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bo
 		case options.Strings:
 			commands.Strings(w, reader, isPipe, opts, cmdArgs)
 			return nil
+		case options.CountBytes:
+			commands.CountBytes(w, reader, isPipe, opts, cmdArgs)
+			return nil
 		default:
 			return fmt.Errorf("Unhandled command: %q", options.CommandToString(cmd))
 		}

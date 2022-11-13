@@ -138,6 +138,8 @@ func main() {
 			}
 		case "strings", "string", "str", "strs", "s":
 			cmd = options.Strings
+		case "count", "bytes", "count-bytes":
+			cmd = options.CountBytes
 		default:
 			fmt.Fprintf(os.Stderr, "Unrecognized command: %q\n", args[0])
 			os.Exit(1)

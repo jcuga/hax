@@ -50,7 +50,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe b
 
 	showPretty := !isPipe || opts.Display.Pretty
 	buf := make([]byte, options.OutputBufferSize)
-	bytesRead := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
+	bytesRead := int64(0)
 
 	// buffer output
 	var outBuilder strings.Builder
