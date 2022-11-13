@@ -28,8 +28,9 @@ type DisplayOptions struct {
 	Quiet          bool
 	HideZerosBytes bool
 	OmitZeroPages  bool
-	MinStringLen   int // min len of strings to include in strings output
-	MaxStringLen   int
+	// TODO: these will get removed in favor of cmd pattern
+	MinStringLen int // min len of strings to include in strings output
+	MaxStringLen int
 }
 
 type Options struct {
@@ -42,6 +43,37 @@ type Options struct {
 	Display    DisplayOptions
 	// Yes is whether to auto-answer y/yes to any prompts
 	Yes bool
+}
+
+// RawOptions are pre-parsed, pre-validated version of options.
+// Used to conveniently pass around all the options instead of N func args.
+// Some numeric options are input as string to allow expression evaluation and various
+// representations (excaped hex, binary, etc).
+type RawOptions struct {
+	Filename   string
+	InputData  string
+	InputMode  string
+	OutputMode string
+	Offset     string
+	Limit      string
+	Display    RawDisplayOptions
+	// Yes is whether to auto-answer y/yes to any prompts
+	Yes bool
+}
+
+// RawDisplayOptions are pre-parsed, pre-validated options.\
+// Proivded as an alternative to passing N fucn args.
+type RawDisplayOptions struct {
+	Width          string
+	SubWidth       string // add space after every SubWidth bytes
+	PageSize       string
+	Pretty         bool
+	Quiet          bool
+	HideZerosBytes bool
+	OmitZeroPages  bool
+	// TODO: these will get removed in favor of cmd pattern
+	MinStringLen int // min len of strings to include in strings output
+	MaxStringLen int
 }
 
 func parseInputMode(mode string) (IOMode, error) {
@@ -86,41 +118,40 @@ func parseOutputMode(mode string) (IOMode, error) {
 }
 
 // TODO: any error text here needs arg names to update those in main if they've changed during development!
-func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubWidth,
-	pageSize string, alwaysPretty, quiet, yes, hideZeros, omitZeroPages bool,
-	minStringLen, maxStringLen int) (Options, error) {
+func New(rawOpts RawOptions) (Options, error) {
 
 	opts := Options{
-		Filename:  inFilename,
-		InputData: inputStr,
+		Filename:  rawOpts.Filename,
+		InputData: rawOpts.InputData,
 		Display: DisplayOptions{
-			Pretty:         alwaysPretty,
-			Quiet:          quiet,
-			HideZerosBytes: hideZeros,
-			OmitZeroPages:  omitZeroPages,
-			MinStringLen:   minStringLen,
-			MaxStringLen:   maxStringLen,
+			Pretty:         rawOpts.Display.Pretty,
+			Quiet:          rawOpts.Display.Quiet,
+			HideZerosBytes: rawOpts.Display.HideZerosBytes,
+			OmitZeroPages:  rawOpts.Display.OmitZeroPages,
+			MinStringLen:   rawOpts.Display.MinStringLen,
+			MaxStringLen:   rawOpts.Display.MaxStringLen,
 		},
-		Yes: yes,
+		Yes: rawOpts.Yes,
 	}
 
-	if len(inMode) > 0 {
-		if mode, err := parseInputMode(inMode); err == nil {
+	if len(rawOpts.InputMode) > 0 {
+		if mode, err := parseInputMode(rawOpts.InputMode); err == nil {
 			opts.InputMode = mode
 		} else {
+			// TODO: update these to not use the --name of arg? Higher level name...
 			return opts, fmt.Errorf("Invalid --input/-i value. %v ", err)
 		}
 	} else {
 		// default to Hex when --str input, otherwise raw for --file/stdin
-		if len(inputStr) > 0 {
+		if len(rawOpts.InputData) > 0 {
 			opts.InputMode = Hex
 		} else {
 			opts.InputMode = Raw
 		}
 	}
 
-	if len(outMode) > 0 {
-		if mode, err := parseOutputMode(outMode); err == nil {
+	if len(rawOpts.OutputMode) > 0 {
+		if mode, err := parseOutputMode(rawOpts.OutputMode); err == nil {
 			opts.OutputMode = mode
 		} else {
 			return opts, fmt.Errorf("Invalid --output/-o value. %v ", err)
@@ -131,25 +162,25 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 	}
 
 	opts.Offset = 0
-	if len(offset) > 0 {
-		if parsedOffset, err := eval.EvalExpression(offset); err == nil {
+	if len(rawOpts.Offset) > 0 {
+		if parsedOffset, err := eval.EvalExpression(rawOpts.Offset); err == nil {
 			if parsedOffset < 0 {
 				return opts, fmt.Errorf(
-					"Invalid --offset/-n value %q, must be >= 0 ", offset)
+					"Invalid --offset/-n value %q, must be >= 0 ", rawOpts.Offset)
 			}
 			opts.Offset = parsedOffset
 		} else {
 			return opts, fmt.Errorf(
-				"Failed to parse --offset/-n value %q, error: %v", offset, err)
+				"Failed to parse --offset/-n value %q, error: %v", rawOpts.Offset, err)
 		}
 	}
 
 	opts.Limit = math.MaxInt64
-	if len(limit) > 0 {
-		if parsedLimit, err := eval.EvalExpression(limit); err == nil {
+	if len(rawOpts.Limit) > 0 {
+		if parsedLimit, err := eval.EvalExpression(rawOpts.Limit); err == nil {
 			if parsedLimit < 0 {
 				return opts, fmt.Errorf(
-					"Invalid --limit/-l value %q, must be >= 0 ", limit)
+					"Invalid --limit/-l value %q, must be >= 0 ", rawOpts.Limit)
 			}
 			if parsedLimit == 0 {
 				opts.Limit = math.MaxInt64
@@ -158,11 +189,11 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 			}
 		} else {
 			return opts, fmt.Errorf(
-				"Failed to parse --limit/-l value %q, error: %v", limit, err)
+				"Failed to parse --limit/-l value %q, error: %v", rawOpts.Limit, err)
 		}
 	}
 
-	if colWidth == "" {
+	if rawOpts.Display.Width == "" {
 		if opts.OutputMode == Display {
 			opts.Display.Width = 16
 		} else {
@@ -170,43 +201,43 @@ func New(inFilename, inputStr, inMode, outMode, offset, limit, colWidth, colSubW
 			opts.Display.Width = 0
 		}
 	} else {
-		if parsedWidth, err := eval.EvalExpression(colWidth); err == nil {
+		if parsedWidth, err := eval.EvalExpression(rawOpts.Display.Width); err == nil {
 			if parsedWidth < 1 || parsedWidth > 1024 {
 				return opts, fmt.Errorf(
-					"Invalid --width/-w value %q, must be 1-1024 ", colWidth)
+					"Invalid --width/-w value %q, must be 1-1024 ", rawOpts.Display.Width)
 			}
 			opts.Display.Width = int(parsedWidth)
 		} else {
 			return opts, fmt.Errorf(
-				"Failed to parse --width/-w value %q, error: %v", colWidth, err)
+				"Failed to parse --width/-w value %q, error: %v", rawOpts.Display.Width, err)
 		}
 	}
 
-	if colSubWidth == "" {
+	if rawOpts.Display.SubWidth == "" {
 		opts.Display.SubWidth = 0
 	} else {
-		if parsedSubWidth, err := eval.EvalExpression(colSubWidth); err == nil {
+		if parsedSubWidth, err := eval.EvalExpression(rawOpts.Display.SubWidth); err == nil {
 			if parsedSubWidth < 0 || (opts.Display.Width > 0 && parsedSubWidth > int64(opts.Display.Width)) {
 				return opts, fmt.Errorf(
-					"Invalid --sub-width/-ww value %q, must be 0 to --width (%d) ", colSubWidth, opts.Display.Width)
+					"Invalid --sub-width/-ww value %q, must be 0 to --width (%d) ", rawOpts.Display.SubWidth, opts.Display.Width)
 			}
 			opts.Display.SubWidth = int(parsedSubWidth)
 		} else {
 			return opts, fmt.Errorf(
-				"Failed to parse --sub-width/-ww value %q, error: %v", colSubWidth, err)
+				"Failed to parse --sub-width/-ww value %q, error: %v", rawOpts.Display.SubWidth, err)
 		}
 	}
 
-	if parsedPage, err := eval.EvalExpression(pageSize); err == nil {
+	if parsedPage, err := eval.EvalExpression(rawOpts.Display.PageSize); err == nil {
 		if parsedPage < 0 {
 			return opts, fmt.Errorf(
-				"Invalid --page/-p value %q, must be >= 0", colWidth)
+				"Invalid --page/-p value %q, must be >= 0", rawOpts.Display.PageSize)
 		}
 
 		opts.Display.PageSize = int(parsedPage)
 	} else {
 		return opts, fmt.Errorf(
-			"Failed to parse --page/-p value %q, error: %v", pageSize, err)
+			"Failed to parse --page/-p value %q, error: %v", rawOpts.Display.PageSize, err)
 	}
 
 	if opts.Display.MaxStringLen < 0 {

@@ -12,78 +12,60 @@ import (
 )
 
 func main() {
+	rawOpts := options.RawOptions{Display: options.RawDisplayOptions{}}
 	// Input is either: file, --str arg, or stdin
-	var inFilename string
-	flag.StringVar(&inFilename, "file", "", "Filename to read from. Parsed as raw by default (change with --input).")
-	flag.StringVar(&inFilename, "f", "", "")
-	var inputStr string
-	flag.StringVar(&inputStr, "str", "", "String input instead of file/stdin. Parsed as hex by default.")
-	flag.StringVar(&inputStr, "s", "", "")
+	flag.StringVar(&rawOpts.Filename, "file", "", "Filename to read from. Parsed as raw by default (change with --input).")
+	flag.StringVar(&rawOpts.Filename, "f", "", "")
+	flag.StringVar(&rawOpts.InputData, "str", "", "String input instead of file/stdin. Parsed as hex by default.")
+	flag.StringVar(&rawOpts.InputData, "s", "", "")
 
 	// Input/output can be raw binary, hex string, base64 string, binary string,
 	// or copy+paste of hax output.
-	var inMode string
-	flag.StringVar(&inMode, "input", "", "Input mode. See I/O Modes section for options.")
-	flag.StringVar(&inMode, "in", "", "")
+	flag.StringVar(&rawOpts.InputMode, "input", "", "Input mode. See I/O Modes section for options.")
+	flag.StringVar(&rawOpts.InputMode, "in", "", "")
 
-	var outMode string
-	flag.StringVar(&outMode, "output", "", "Output mode. (defaults to hexeditor formatted output).")
-	flag.StringVar(&outMode, "out", "", "")
+	flag.StringVar(&rawOpts.OutputMode, "output", "", "Output mode. (defaults to hexeditor formatted output).")
+	flag.StringVar(&rawOpts.OutputMode, "out", "", "")
 
 	// Optional input limit/offset. This can be in decimal or hex.
-	var offset string
-	flag.StringVar(&offset, "offset", "", "Input offset in bytes (default 0).")
-	flag.StringVar(&offset, "o", "", "")
-	var limit string
-	flag.StringVar(&limit, "limit", "", "Input limit in bytes (default no limit).")
-	flag.StringVar(&limit, "l", "", "")
+	flag.StringVar(&rawOpts.Offset, "offset", "", "Input offset in bytes (default 0).")
+	flag.StringVar(&rawOpts.Offset, "o", "", "")
+	flag.StringVar(&rawOpts.Limit, "limit", "", "Input limit in bytes (default no limit).")
+	flag.StringVar(&rawOpts.Limit, "l", "", "")
 
 	// Customize display mode output:
-	var colWidth string
 	// TODO: don't have a default, then default based on output mode if not specified.
 	// TODO: update -h/usage output to reflect this change.
-	flag.StringVar(&colWidth, "width", "", "Column Width: Num bytes per row.")
-	flag.StringVar(&colWidth, "w", "", "")
-	var colSubWidth string
-	flag.StringVar(&colSubWidth, "sub-width", "", "Column sub-width: add space after every N bytes.")
-	flag.StringVar(&colSubWidth, "ww", "", "")
-	var pageSize string
-	flag.StringVar(&pageSize, "page", "4", "Display page breaks every N (default 4, 0=never).")
-	flag.StringVar(&pageSize, "p", "4", "")
-	var alwaysPretty bool
-	flag.BoolVar(&alwaysPretty, "pretty", false, "Always pretty-print/style output.")
-	var quiet bool
-	flag.BoolVar(&quiet, "no-ascii", false, "Skip outputting ascii below each row of bytes.")
-	flag.BoolVar(&quiet, "q", false, "")
+	flag.StringVar(&rawOpts.Display.Width, "width", "", "Column Width: Num bytes per row.")
+	flag.StringVar(&rawOpts.Display.Width, "w", "", "")
+	flag.StringVar(&rawOpts.Display.SubWidth, "sub-width", "", "Column sub-width: add space after every N bytes.")
+	flag.StringVar(&rawOpts.Display.SubWidth, "ww", "", "")
+	flag.StringVar(&rawOpts.Display.PageSize, "page", "4", "Display page breaks every N (default 4, 0=never).")
+	flag.StringVar(&rawOpts.Display.PageSize, "p", "4", "")
+	flag.BoolVar(&rawOpts.Display.Pretty, "pretty", false, "Always pretty-print/style output.")
+	flag.BoolVar(&rawOpts.Display.Quiet, "no-ascii", false, "Skip outputting ascii below each row of bytes.")
+	flag.BoolVar(&rawOpts.Display.Quiet, "q", false, "")
 
-	var yes bool
-	flag.BoolVar(&yes, "yes", false, "Auto-answer yes to any prompts.") // TODO: remember to add to custom usage output.
-	flag.BoolVar(&yes, "y", false, "")
+	flag.BoolVar(&rawOpts.Yes, "yes", false, "Auto-answer yes to any prompts.") // TODO: remember to add to custom usage output.
+	flag.BoolVar(&rawOpts.Yes, "y", false, "")
 
-	var hideZeros bool
-	flag.BoolVar(&hideZeros, "hide-zeros", false, "Hide/leave-blank all zero bytes in hexedit display.") // TODO: remember to add to custom usage output.
-	flag.BoolVar(&hideZeros, "hide", false, "")
+	flag.BoolVar(&rawOpts.Display.HideZerosBytes, "hide-zeros", false, "Hide/leave-blank all zero bytes in hexedit display.") // TODO: remember to add to custom usage output.
+	flag.BoolVar(&rawOpts.Display.HideZerosBytes, "hide", false, "")
 
-	var omitZeroPages bool
-	flag.BoolVar(&omitZeroPages, "omit-zeros", false, "Omit pages that are entirely zero in hexedit display.") // TODO: remember to add to custom usage output.
-	flag.BoolVar(&omitZeroPages, "omit", false, "")
+	flag.BoolVar(&rawOpts.Display.OmitZeroPages, "omit-zeros", false, "Omit pages that are entirely zero in hexedit display.") // TODO: remember to add to custom usage output.
+	flag.BoolVar(&rawOpts.Display.OmitZeroPages, "omit", false, "")
 
-	// NOTE: using this to denote an unset value instead of checking further below if len(calcEval) > 0
-	// as one could pass an empty string or a non existant bash var.  If that were to occur the default
-	// behavior would be to wait for stdin and display hexedit output. Instead, use placeholder and
-	// then let the calc command complain about blank data.
+	// TODO: replace this and the opts.display.min/max str len with cmd pattern
 	calcCmdUnset := "unset"
 	var calcEval string
 	flag.StringVar(&calcEval, "calc", calcCmdUnset, "Calculate/eval an expression.")
 	flag.StringVar(&calcEval, "eval", calcCmdUnset, "")
 
-	var minStringLen int
-	flag.IntVar(&minStringLen, "min-str", 3, "Min lenght of string to output for strings output mode.")
-	flag.IntVar(&minStringLen, "minstr", 3, "")
+	flag.IntVar(&rawOpts.Display.MinStringLen, "min-str", 3, "Min lenght of string to output for strings output mode.")
+	flag.IntVar(&rawOpts.Display.MinStringLen, "minstr", 3, "")
 
-	var maxStringLen int
-	flag.IntVar(&maxStringLen, "max-str", -1, "Max lenght of string to output for strings output mode.")
-	flag.IntVar(&maxStringLen, "maxstr", -1, "")
+	flag.IntVar(&rawOpts.Display.MaxStringLen, "max-str", -1, "Max lenght of string to output for strings output mode.")
+	flag.IntVar(&rawOpts.Display.MaxStringLen, "maxstr", -1, "")
 
 	flag.Usage = func() {
 		w := flag.CommandLine.Output() // may be os.Stderr - but not necessarily
@@ -167,9 +149,7 @@ func main() {
 		}
 	}
 
-	opts, err := options.New(inFilename, inputStr, inMode, outMode,
-		offset, limit, colWidth, colSubWidth, pageSize, alwaysPretty,
-		quiet, yes, hideZeros, omitZeroPages, minStringLen, maxStringLen)
+	opts, err := options.New(rawOpts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
