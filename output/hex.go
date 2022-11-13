@@ -24,6 +24,18 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	}
 	encoder := hex.NewEncoder(outWriter)
 
+	defer func() {
+		if !isPipe {
+			// add newline to end of terminal output
+			fmt.Fprintf(writer, "\n")
+		}
+	}()
+
+	if !isPipe {
+		// add newline to start of output when in terminal
+		fmt.Fprintf(writer, "\n")
+	}
+
 	for {
 		var n int
 		var err error
@@ -49,10 +61,6 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 			break
 		}
 	}
-	if !isPipe {
-		// add newline to end of terminal output
-		fmt.Fprintf(writer, "\n")
-	}
 }
 
 func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
@@ -76,6 +84,18 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 	bytesBuf := bytes.Buffer{}
 	bytesBuf.Grow(outWidth) // pre-allocate if needed, on subsequent calls, shouldn't allocate
 	firstByte := true       // decides if ", " included in front of hex list items
+
+	defer func() {
+		if !isPipe {
+			// add newline to end of terminal output
+			fmt.Fprintf(writer, "\n")
+		}
+	}()
+
+	if !isPipe {
+		// add newline to start of output when in terminal
+		fmt.Fprintf(writer, "\n")
+	}
 
 	for {
 		var n int
@@ -127,9 +147,5 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 		if bytesWritten >= opts.Limit {
 			break
 		}
-	}
-	if !isPipe {
-		// add newline to end of terminal output
-		fmt.Fprintf(writer, "\n")
 	}
 }

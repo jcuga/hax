@@ -14,6 +14,18 @@ func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	buf := make([]byte, outBufferSize)
 	bytesWritten := int64(0)
 
+	defer func() {
+		if !isPipe {
+			// add newline to end of terminal output
+			fmt.Fprintf(writer, "\n")
+		}
+	}()
+
+	if !isPipe {
+		// add newline to start of output when in terminal
+		fmt.Fprintf(writer, "\n")
+	}
+
 	for {
 		var n int
 		var err error

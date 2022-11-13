@@ -26,6 +26,17 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 	// track start of current string
 	curStringStart := int64(-1)
 
+	defer func() {
+		if !isPipe {
+			// add newline to end of terminal output
+			fmt.Fprintf(writer, "\n")
+		}
+	}()
+
+	if !isPipe {
+		// add newline to start of output when in terminal
+		fmt.Fprintf(writer, "\n")
+	}
 	for {
 		var n int
 		var err error
@@ -68,10 +79,6 @@ func outputStrings(writer io.Writer, reader *input.FixedLengthBufferedReader, is
 			outBuilder.Reset()
 			break
 		}
-	}
-	if !isPipe {
-		// add newline to end of terminal output
-		fmt.Fprint(writer, "\n")
 	}
 }
 
