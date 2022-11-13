@@ -14,7 +14,8 @@ import (
 func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 	var writer strings.Builder
 	original := "I'm a little tea pot, short and stout."
-	expected := `0x49, 0x27, 0x6D, 0x20, 0x61, 0x20, 0x6C, 0x69, 
+	expected := `
+0x49, 0x27, 0x6D, 0x20, 0x61, 0x20, 0x6C, 0x69, 
 0x74, 0x74, 0x6C, 0x65, 0x20, 0x74, 0x65, 0x61, 
 0x20, 0x70, 0x6F, 0x74, 0x2C, 0x20, 0x73, 0x68, 
 0x6F, 0x72, 0x74, 0x20, 0x61, 0x6E, 0x64, 0x20, 
@@ -61,7 +62,8 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	Output(&writer, input.NewFixedLengthBufferedReader(reader), true, // NOTE: isPipe true will cause no
+		// extra preceeding/ending newlines to be added.
 		options.Options{
 			InputMode:  options.HexList,
 			OutputMode: options.Raw,
