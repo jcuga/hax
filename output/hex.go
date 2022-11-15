@@ -11,7 +11,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -31,7 +31,7 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 		}
 	}()
 
-	if !isPipe {
+	if !isPipe && isStdin {
 		// add newline to start of output when in terminal
 		fmt.Fprintf(writer, "\n")
 	}
@@ -63,7 +63,7 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	}
 }
 
-func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -92,7 +92,7 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 		}
 	}()
 
-	if !isPipe {
+	if !isPipe && isStdin {
 		// add newline to start of output when in terminal
 		fmt.Fprintf(writer, "\n")
 	}
@@ -139,6 +139,125 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 				} else {
 					bytesBuf.Write([]byte{',', ' ', '0', 'x', byte(highByte), lowByte})
 				}
+			}
+		}
+		outWriter.Write(bytesBuf.Bytes())
+
+		bytesWritten += int64(n)
+		if bytesWritten >= opts.Limit {
+			break
+		}
+	}
+}
+
+func outputHexAscii(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
+	buf := make([]byte, options.OutputBufferSize)
+	bytesWritten := int64(0)
+
+	var outWriter io.Writer
+	outWriter = writer
+	curLineChars := 0 // for enforcing optional opts.Display.Width
+	displayWidth := opts.Display.Width
+	if displayWidth > 0 && displayWidth < 4 {
+		// min of 4 (if set) as worst case we print '\\xAB' which is 4 chars
+		displayWidth = 4
+	}
+	bytesBuf := bytes.Buffer{}
+
+	defer func() {
+		if !isPipe {
+			// add newline to end of terminal output
+			fmt.Fprintf(writer, "\n")
+		}
+	}()
+
+	if !isPipe && isStdin {
+		// add newline to start of output when in terminal
+		fmt.Fprintf(writer, "\n")
+	}
+
+	for {
+		var n int
+		var err error
+		// only read up to limit many bytes:
+		if opts.Limit-bytesWritten < options.OutputBufferSize {
+			n, err = reader.Read(buf[:opts.Limit-bytesWritten])
+		} else {
+			n, err = reader.Read(buf)
+		}
+
+		if err != nil && err != io.EOF {
+			fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
+			os.Exit(1)
+		}
+		if n == 0 {
+			break
+		}
+
+		bytesBuf.Reset()
+		for i := 0; i < n; i++ {
+			if buf[i] > 31 && buf[i] < 127 {
+				if displayWidth > 0 {
+					if curLineChars >= displayWidth {
+						bytesBuf.WriteByte('\n')
+						curLineChars = 1 // about to write char out
+					} else {
+						curLineChars += 1
+					}
+				}
+				bytesBuf.WriteByte(buf[i])
+			} else if buf[i] == '\n' {
+				if displayWidth > 0 {
+					if curLineChars >= displayWidth-1 {
+						bytesBuf.WriteByte('\n')
+						curLineChars = 2 // about to write 2 chars out
+					} else {
+						curLineChars += 2
+					}
+				}
+				bytesBuf.Write([]byte{'\\', 'n'})
+			} else if buf[i] == '\r' {
+				if displayWidth > 0 {
+					if curLineChars >= displayWidth-1 {
+						bytesBuf.WriteByte('\n')
+						curLineChars = 2 // about to write 2 chars out
+					} else {
+						curLineChars += 2
+					}
+				}
+				bytesBuf.Write([]byte{'\\', 'r'})
+			} else if buf[i] == '\t' {
+				if displayWidth > 0 {
+					if curLineChars >= displayWidth-1 {
+						bytesBuf.WriteByte('\n')
+						curLineChars = 2 // about to write 2 chars out
+					} else {
+						curLineChars += 2
+					}
+				}
+				bytesBuf.Write([]byte{'\\', 't'})
+			} else {
+				if displayWidth > 0 {
+					if curLineChars >= displayWidth-3 {
+						bytesBuf.WriteByte('\n')
+						curLineChars = 4 // about to write 2 chars out
+					} else {
+						curLineChars += 4
+					}
+				}
+				highByte := buf[i] >> 4
+				if highByte < 10 {
+					highByte = '0' + highByte // gets char values '0' thru '9'
+				} else {
+					highByte = 'A' + (highByte - 10) // gets char values 'A' thru 'F'
+				}
+				lowByte := buf[i] & 0x0F
+				if lowByte < 10 {
+					lowByte = '0' + lowByte // gets char values '0' thru '9'
+				} else {
+					lowByte = 'A' + (lowByte - 10) // gets char values 'A' thru 'F'
+				}
+				bytesBuf.Write([]byte{'\\', 'x', byte(highByte), lowByte})
 			}
 		}
 		outWriter.Write(bytesBuf.Bytes())

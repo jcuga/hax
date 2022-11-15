@@ -9,7 +9,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
 	// TODO: if isPipe, prompt first? cmdline -y option?
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0)
@@ -21,7 +21,7 @@ func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 		}
 	}()
 
-	if !isPipe {
+	if !isPipe && isStdin {
 		// add newline to start of output when in terminal
 		fmt.Fprintf(writer, "\n")
 	}

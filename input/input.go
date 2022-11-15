@@ -22,7 +22,7 @@ const (
 // less.  This allows us to easily read and get back expected amount of
 // data without having to worry about base64 vs hex vs raw which all have
 // different input vs represented byte lengths.
-func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, error) {
+func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, bool, error) {
 	var reader io.Reader
 	var closer io.Closer
 	// flag for whether we Seek on a raw formatted file to enforce opts.Offset
@@ -33,27 +33,28 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 	// "true" bytes are skipped since we're dealing with base64/hex
 	// "synthetic" bytes input.
 	fileOffsetOptimization := false
-
+	isStdin := false
 	if len(opts.InputData) > 0 {
 		reader = strings.NewReader(opts.InputData)
 		closer = nil
 	} else if len(opts.Filename) > 0 {
 		f, err := os.Open(opts.Filename)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, isStdin, err
 		}
 		reader = f
 		closer = f
 		if opts.Offset > 0 && opts.InputMode == options.Raw {
 			if _, err := f.Seek(opts.Offset, os.SEEK_SET); err != nil {
 				defer f.Close()
-				return nil, nil, fmt.Errorf("Failed to seek offset: %d on input file, error: %v", opts.Offset, err)
+				return nil, nil, isStdin, fmt.Errorf("Failed to seek offset: %d on input file, error: %v", opts.Offset, err)
 			}
 			fileOffsetOptimization = true
 		}
 	} else {
 		reader = bufio.NewReader(os.Stdin)
 		closer = nil
+		isStdin = true
 	}
 
 	// Now turn reader into reader with given mode...
@@ -83,7 +84,7 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 			'\r', '\n', '\t', ' ',
 		}))
 	default:
-		return nil, closer, fmt.Errorf("Invalid input mode: %v", opts.InputMode)
+		return nil, closer, isStdin, fmt.Errorf("Invalid input mode: %v", opts.InputMode)
 	}
 
 	fixedReader := NewFixedLengthBufferedReader(modeReader)
@@ -105,5 +106,5 @@ func GetInput(opts options.Options) (*FixedLengthBufferedReader, io.Closer, erro
 		}
 	}
 
-	return fixedReader, closer, nil
+	return fixedReader, closer, isStdin, nil
 }

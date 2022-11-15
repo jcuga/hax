@@ -10,7 +10,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
 	showPretty := !isPipe || opts.Display.Pretty
 	subWidthPadding := "  " // if opts.Display.SubWidth set, this amount of whitespace to pad between elements within row
 	count := int64(0)

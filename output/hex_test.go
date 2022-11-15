@@ -15,8 +15,8 @@ func Test_outputHexStringOrList_HexString(t *testing.T) {
 		"The rain in Spain falls mainly in the plains.",
 	)
 	// NOTE: expect a newline (0A) at the end when not a pipe output
-	expected := "\n\\x54\\x68\\x65\\x20\\x72\\x61\\x69\\x6E\\x20\\x69\\x6E\\x20\\x53\\x70\\x61\\x69\\x6E\\x20\\x66\\x61\\x6C\\x6C\\x73\\x20\\x6D\\x61\\x69\\x6E\\x6C\\x79\\x20\\x69\\x6E\\x20\\x74\\x68\\x65\\x20\\x70\\x6C\\x61\\x69\\x6E\\x73\\x2E\x0A"
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	expected := "\\x54\\x68\\x65\\x20\\x72\\x61\\x69\\x6E\\x20\\x69\\x6E\\x20\\x53\\x70\\x61\\x69\\x6E\\x20\\x66\\x61\\x6C\\x6C\\x73\\x20\\x6D\\x61\\x69\\x6E\\x6C\\x79\\x20\\x69\\x6E\\x20\\x74\\x68\\x65\\x20\\x70\\x6C\\x61\\x69\\x6E\\x73\\x2E\x0A"
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 		options.Options{OutputMode: options.HexString, Limit: math.MaxInt64})
 	result := writer.String()
 	if result != expected {
@@ -28,10 +28,10 @@ func Test_outputHexStringOrList_HexString(t *testing.T) {
 	reader = strings.NewReader(
 		"The rain in Spain falls mainly in the plains.",
 	)
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), true,
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), true, false,
 		options.Options{OutputMode: options.HexString, Limit: math.MaxInt64})
 	result = writer.String()
-	if result != expected[1:len(expected)-1] {
+	if result != expected[:len(expected)-1] {
 		t.Errorf("Unexpected output.\nExpected:\n%q\n\ngot:\n%q", expected[:len(expected)-1], result)
 	}
 }
@@ -43,8 +43,8 @@ func Test_outputHexStringOrList_HexString_WithLimit(t *testing.T) {
 		"The rain in Spain falls mainly in the plains.",
 	)
 	// Expect escaped hex of "The rain". Plus newline.
-	expected := "\n\\x54\\x68\\x65\\x20\\x72\\x61\\x69\\x6E\n"
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	expected := "\\x54\\x68\\x65\\x20\\x72\\x61\\x69\\x6E\n"
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 		options.Options{OutputMode: options.HexString, Limit: 8})
 	result := writer.String()
 	if result != expected {
@@ -57,14 +57,13 @@ func Test_outputHexStringOrList_HexString_WithWidth(t *testing.T) {
 	reader := strings.NewReader(
 		"The rain in Spain falls mainly in the plains.",
 	)
-	expected := `
-\x54\x68\x65\x20\x72\x61\x69\x6E\x20\x69
+	expected := `\x54\x68\x65\x20\x72\x61\x69\x6E\x20\x69
 \x6E\x20\x53\x70\x61\x69\x6E\x20\x66\x61
 \x6C\x6C\x73\x20\x6D\x61\x69\x6E\x6C\x79
 \x20\x69\x6E\x20\x74\x68\x65\x20\x70\x6C
 \x61\x69\x6E\x73\x2E
 ` // Note the newline at end of this str.
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 		options.Options{
 			OutputMode: options.HexString,
 			Limit:      math.MaxInt64,
@@ -82,8 +81,8 @@ func Test_outputHexStringOrList_HexList(t *testing.T) {
 		"The rain in Spain falls mainly in the plains.",
 	)
 	// NOTE: expect a newline (0A) at the start/end when not a pipe output
-	expected := "\n0x54, 0x68, 0x65, 0x20, 0x72, 0x61, 0x69, 0x6E, 0x20, 0x69, 0x6E, 0x20, 0x53, 0x70, 0x61, 0x69, 0x6E, 0x20, 0x66, 0x61, 0x6C, 0x6C, 0x73, 0x20, 0x6D, 0x61, 0x69, 0x6E, 0x6C, 0x79, 0x20, 0x69, 0x6E, 0x20, 0x74, 0x68, 0x65, 0x20, 0x70, 0x6C, 0x61, 0x69, 0x6E, 0x73, 0x2E\x0A"
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	expected := "0x54, 0x68, 0x65, 0x20, 0x72, 0x61, 0x69, 0x6E, 0x20, 0x69, 0x6E, 0x20, 0x53, 0x70, 0x61, 0x69, 0x6E, 0x20, 0x66, 0x61, 0x6C, 0x6C, 0x73, 0x20, 0x6D, 0x61, 0x69, 0x6E, 0x6C, 0x79, 0x20, 0x69, 0x6E, 0x20, 0x74, 0x68, 0x65, 0x20, 0x70, 0x6C, 0x61, 0x69, 0x6E, 0x73, 0x2E\x0A"
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 		options.Options{OutputMode: options.HexList, Limit: math.MaxInt64})
 	result := writer.String()
 	if result != expected {
@@ -95,10 +94,10 @@ func Test_outputHexStringOrList_HexList(t *testing.T) {
 	reader = strings.NewReader(
 		"The rain in Spain falls mainly in the plains.",
 	)
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), true,
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), true, false,
 		options.Options{OutputMode: options.HexList, Limit: math.MaxInt64})
 	result = writer.String()
-	if result != expected[1:len(expected)-1] {
+	if result != expected[:len(expected)-1] {
 		t.Errorf("Unexpected output.\nExpected:\n%q\n\ngot:\n%q", expected[:len(expected)-1], result)
 	}
 }
@@ -110,8 +109,8 @@ func Test_outputHexStringOrList_HexList_WithLimit(t *testing.T) {
 		"The rain in Spain falls mainly in the plains.",
 	)
 	// Expect escaped hex of "The rain". Plus newline.
-	expected := "\n0x54, 0x68, 0x65, 0x20, 0x72, 0x61, 0x69, 0x6E\n"
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	expected := "0x54, 0x68, 0x65, 0x20, 0x72, 0x61, 0x69, 0x6E\n"
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 		options.Options{OutputMode: options.HexList, Limit: 8})
 	result := writer.String()
 	if result != expected {
@@ -124,14 +123,13 @@ func Test_outputHexStringOrList_HexList_WithWidth(t *testing.T) {
 	reader := strings.NewReader(
 		"The rain in Spain falls mainly in the plains.",
 	)
-	expected := `
-0x54, 0x68, 0x65, 0x20, 0x72, 0x61, 0x69, 0x6E, 0x20, 0x69, 
+	expected := `0x54, 0x68, 0x65, 0x20, 0x72, 0x61, 0x69, 0x6E, 0x20, 0x69, 
 0x6E, 0x20, 0x53, 0x70, 0x61, 0x69, 0x6E, 0x20, 0x66, 0x61, 
 0x6C, 0x6C, 0x73, 0x20, 0x6D, 0x61, 0x69, 0x6E, 0x6C, 0x79, 
 0x20, 0x69, 0x6E, 0x20, 0x74, 0x68, 0x65, 0x20, 0x70, 0x6C, 
 0x61, 0x69, 0x6E, 0x73, 0x2E
 ` // Note the newline at end of this str.
-	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+	outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 		options.Options{
 			OutputMode: options.HexList,
 			Limit:      math.MaxInt64,
@@ -150,7 +148,7 @@ func Benchmark_outputHexStringOrList_HexString(b *testing.B) {
 		reader := strings.NewReader(
 			"The rain in Spain falls mainly in the plains.",
 		)
-		outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+		outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 			options.Options{OutputMode: options.HexString, Limit: math.MaxInt64})
 		result := writer.String()
 		// Ensure we're actually creating expected output.
@@ -169,7 +167,7 @@ func Benchmark_outputHexStringOrList_HexList(b *testing.B) {
 		reader := strings.NewReader(
 			"The rain in Spain falls mainly in the plains.",
 		)
-		outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false,
+		outputHexStringOrList(&writer, input.NewFixedLengthBufferedReader(reader), false, false,
 			options.Options{OutputMode: options.HexList, Limit: math.MaxInt64})
 		result := writer.String()
 		// Ensure we're actually creating expected output.

@@ -12,7 +12,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options,
+func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options,
 	cmdOptions []string) {
 	minStringLen := 0
 	maxStringLen := math.MaxInt32
@@ -59,14 +59,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe b
 	// track start of current string
 	curStringStart := int64(-1)
 
-	defer func() {
-		if !isPipe {
-			// add newline to end of terminal output
-			fmt.Fprintf(writer, "\n")
-		}
-	}()
-
-	if !isPipe {
+	if !isPipe && isStdin {
 		// add newline to start of output when in terminal
 		fmt.Fprintf(writer, "\n")
 	}

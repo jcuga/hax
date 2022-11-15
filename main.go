@@ -152,7 +152,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	inReader, inCloser, err := input.GetInput(opts)
+	inReader, inCloser, isStdin, err := input.GetInput(opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
@@ -167,7 +167,7 @@ func main() {
 		isPipe = true
 	}
 
-	if err := output.Output(os.Stdout, inReader, isPipe, opts, cmd, cmdArgs); err != nil {
+	if err := output.Output(os.Stdout, inReader, isPipe, isStdin, opts, cmd, cmdArgs); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

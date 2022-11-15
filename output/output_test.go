@@ -14,8 +14,7 @@ import (
 func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 	var writer strings.Builder
 	original := "I'm a little tea pot, short and stout."
-	expected := `
-0x49, 0x27, 0x6D, 0x20, 0x61, 0x20, 0x6C, 0x69, 
+	expected := `0x49, 0x27, 0x6D, 0x20, 0x61, 0x20, 0x6C, 0x69, 
 0x74, 0x74, 0x6C, 0x65, 0x20, 0x74, 0x65, 0x61, 
 0x20, 0x70, 0x6F, 0x74, 0x2C, 0x20, 0x73, 0x68, 
 0x6F, 0x72, 0x74, 0x20, 0x61, 0x6E, 0x64, 0x20, 
@@ -31,7 +30,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 	// NOTE: use GetInput to get wrapped reader with proper "mode" based on opts.InputMode.
 	// One can't simply set the input mode on opts and pass it to Output().
 	// Output does not modify/wrap the input reader, the GetInput func does.
-	reader, closer, err := input.GetInput(opts1)
+	reader, closer, isStdin, err := input.GetInput(opts1)
 	if err != nil {
 		t.Fatalf("Failed to create input reader, error: %v", err)
 	}
@@ -39,7 +38,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, reader, false, opts1, options.NoCommand, []string{})
+	Output(&writer, reader, false, isStdin, opts1, options.NoCommand, []string{})
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hexlist output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -54,7 +53,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		Limit:      math.MaxInt64,
 		Display:    options.DisplayOptions{Width: 8},
 	}
-	reader, closer, err = input.GetInput(opts2)
+	reader, closer, isStdin, err = input.GetInput(opts2)
 	if err != nil {
 		t.Fatalf("Failed to create input reader, error: %v", err)
 	}
@@ -62,7 +61,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, input.NewFixedLengthBufferedReader(reader), true, // NOTE: isPipe true will cause no
+	Output(&writer, input.NewFixedLengthBufferedReader(reader), true, isStdin, // NOTE: isPipe true will cause no
 		// extra preceeding/ending newlines to be added.
 		options.Options{
 			InputMode:  options.HexList,

@@ -20,6 +20,7 @@ const (
 	Hex
 	HexString // Escaped hex that can be used in a string literal, ex: "\xAB\xCD\xEF"
 	HexList   // List of hex bytes that can be used in an array literal: "0xAB, 0xCD, 0xEF"
+	HexAscii  // mix of ascii printables and \x escaped hex
 	Base64
 	Display
 )
@@ -96,6 +97,7 @@ type RawDisplayOptions struct {
 	OmitZeroPages  bool
 }
 
+// TODO: ensure strings in input and output parsing are same for same IO types
 func parseInputMode(mode string) (IOMode, error) {
 	normMode := strings.ToLower(mode)
 	switch normMode {
@@ -103,10 +105,12 @@ func parseInputMode(mode string) (IOMode, error) {
 		return Raw, nil
 	case "hex", "h":
 		return Hex, nil
-	case "hex-string", "hex-str", "hexstr", "hs", "str", "s":
+	case "hex-string", "hex-str", "hexstr", "hs":
 		return HexString, nil
 	case "hex-list", "hexlist", "hl", "list", "l":
 		return HexList, nil
+	case "hex-ascii", "hexascii", "hybrid":
+		return HexAscii, nil
 	case "base64", "b64", "b":
 		return Base64, nil
 	// NOTE: not valid input modes: Display, Strings
@@ -126,6 +130,8 @@ func parseOutputMode(mode string) (IOMode, error) {
 		return HexString, nil
 	case "hex-list", "hexlist", "hl", "list", "l":
 		return HexList, nil
+	case "hex-ascii", "hexascii", "hybrid":
+		return HexAscii, nil
 	case "base64", "b64", "b":
 		return Base64, nil
 	case "display", "d":
