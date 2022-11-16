@@ -12,7 +12,7 @@ import (
 // CountBytes counds the number of bytes from a given input.
 // NOTE: the input could be a non-raw format like base64, hex string, etc.
 // This will count the "true"/raw amount of bytes represented by the various formats.
-func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options,
+func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options,
 	cmdOptions []string) {
 	if len(cmdOptions) != 0 {
 		fmt.Fprintf(os.Stderr, "Command 'count', unexpected arguments. Expect: 0, got: %d.\n", len(cmdOptions))
@@ -23,17 +23,6 @@ func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 	buf := make([]byte, options.OutputBufferSize)
 	bytesRead := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
-	defer func() {
-		if !isPipe {
-			// add newline to end of terminal output
-			fmt.Fprintf(writer, "\n")
-		}
-	}()
-
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(writer, "\n")
-	}
 	for {
 		var n int
 		var err error

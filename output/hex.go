@@ -11,7 +11,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
+func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -23,18 +23,6 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 		outWriter, _ = NewFixedWidthWriter(outWriter, outWidth)
 	}
 	encoder := hex.NewEncoder(outWriter)
-
-	defer func() {
-		if !isPipe {
-			// add newline to end of terminal output
-			fmt.Fprintf(writer, "\n")
-		}
-	}()
-
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(writer, "\n")
-	}
 
 	for {
 		var n int
@@ -63,7 +51,7 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	}
 }
 
-func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
+func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -84,18 +72,6 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 	bytesBuf := bytes.Buffer{}
 	bytesBuf.Grow(outWidth) // pre-allocate if needed, on subsequent calls, shouldn't allocate
 	firstByte := true       // decides if ", " included in front of hex list items
-
-	defer func() {
-		if !isPipe {
-			// add newline to end of terminal output
-			fmt.Fprintf(writer, "\n")
-		}
-	}()
-
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(writer, "\n")
-	}
 
 	for {
 		var n int
@@ -150,7 +126,7 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 	}
 }
 
-func outputHexAscii(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
+func outputHexAscii(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0)
 
@@ -163,18 +139,6 @@ func outputHexAscii(writer io.Writer, reader *input.FixedLengthBufferedReader, i
 		displayWidth = 4
 	}
 	bytesBuf := bytes.Buffer{}
-
-	defer func() {
-		if !isPipe {
-			// add newline to end of terminal output
-			fmt.Fprintf(writer, "\n")
-		}
-	}()
-
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(writer, "\n")
-	}
 
 	for {
 		var n int

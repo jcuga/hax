@@ -12,7 +12,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options,
+func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options,
 	cmdOptions []string) {
 	minStringLen := 0
 	maxStringLen := math.MaxInt32
@@ -58,11 +58,8 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, 
 	var curStrBuilder strings.Builder
 	// track start of current string
 	curStringStart := int64(-1)
+	first := true // used to know when to omit preceeding newline as first line doesn't need it
 
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(writer, "\n")
-	}
 	for {
 		var n int
 		var err error
@@ -78,7 +75,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, 
 			os.Exit(1)
 		}
 		if n == 0 {
-			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
+			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
 			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
@@ -91,7 +88,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, 
 				}
 				curStrBuilder.WriteByte(buf[i])
 			} else {
-				flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
+				flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
 			}
 		}
 
@@ -100,7 +97,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, 
 
 		bytesRead += int64(n)
 		if bytesRead >= opts.Limit {
-			flushCurString(&curStrBuilder, &outBuilder, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
+			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
 			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
@@ -108,7 +105,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, 
 	}
 }
 
-func flushCurString(curStrBuilder, outBuilder *strings.Builder, opts *options.Options, curStringStart *int64, showPretty bool,
+func flushCurString(curStrBuilder, outBuilder *strings.Builder, first *bool, opts *options.Options, curStringStart *int64, showPretty bool,
 	minStringLen, maxStringLen int) {
 	if curStrBuilder.Len() > 0 {
 		orig := curStrBuilder.String()
@@ -121,6 +118,9 @@ func flushCurString(curStrBuilder, outBuilder *strings.Builder, opts *options.Op
 					*curStringStart += int64(idx)
 				}
 			}
+			if !*first {
+				outBuilder.WriteByte('\n')
+			}
 			if !opts.Display.Quiet {
 				if showPretty {
 					outBuilder.WriteString(fmt.Sprintf("\033[36m%13X:\t\033[0m", *curStringStart))
@@ -129,7 +129,7 @@ func flushCurString(curStrBuilder, outBuilder *strings.Builder, opts *options.Op
 				}
 			}
 			outBuilder.WriteString(trimmed)
-			outBuilder.WriteByte('\n')
+			*first = false
 		}
 		*curStringStart = -1
 		curStrBuilder.Reset()

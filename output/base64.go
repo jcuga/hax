@@ -10,7 +10,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool, opts options.Options) {
+func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the base64 output fills.
 	var outWriter io.Writer
@@ -21,16 +21,7 @@ func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, isP
 	encoder := base64.NewEncoder(base64.StdEncoding, outWriter)
 	defer func() {
 		encoder.Close() // needed to flush/encode any final, partial block of data
-		if !isPipe {
-			// add newline to end of terminal output
-			fmt.Fprintf(writer, "\n")
-		}
 	}()
-
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(writer, "\n")
-	}
 
 	for {
 		var n int
