@@ -9,7 +9,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0)
 
@@ -32,7 +32,7 @@ func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 		}
 
 		// For TTY/terminal (ie not a pipe) output, warn and ask if first batch looks like non-printables
-		if !isPipe && bytesWritten == 0 && containsNonPrintable(buf[:n]) {
+		if !ioInfo.StdoutIsPipe && bytesWritten == 0 && containsNonPrintable(buf[:n]) {
 			if !opts.Yes {
 				if !promptForYes("Output may be a binary file.  See it anyway?") { // TODO: better wording--see curl for example? IIRC does similar.
 					os.Exit(0) // TODO: or a non-zero, distinct exit code? see how other common tools do it too.

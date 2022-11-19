@@ -97,6 +97,12 @@ type RawDisplayOptions struct {
 	OmitZeroPages  bool
 }
 
+type IOInfo struct {
+	StdoutIsPipe bool
+	InputIsStdin bool
+	OutputPretty bool
+}
+
 // TODO: ensure strings in input and output parsing are same for same IO types
 func parseInputMode(mode string) (IOMode, error) {
 	normMode := strings.ToLower(mode)

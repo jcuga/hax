@@ -12,7 +12,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options,
+func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options,
 	cmdOptions []string) {
 	minStringLen := 0
 	maxStringLen := math.MaxInt32
@@ -48,7 +48,6 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe b
 		os.Exit(1)
 	}
 
-	showPretty := !isPipe || opts.Display.Pretty
 	buf := make([]byte, options.OutputBufferSize)
 	bytesRead := int64(0)
 
@@ -75,7 +74,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe b
 			os.Exit(1)
 		}
 		if n == 0 {
-			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
+			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
 			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break
@@ -88,7 +87,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe b
 				}
 				curStrBuilder.WriteByte(buf[i])
 			} else {
-				flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
+				flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
 			}
 		}
 
@@ -97,7 +96,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe b
 
 		bytesRead += int64(n)
 		if bytesRead >= opts.Limit {
-			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, showPretty, minStringLen, maxStringLen)
+			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
 			fmt.Fprint(writer, outBuilder.String())
 			outBuilder.Reset()
 			break

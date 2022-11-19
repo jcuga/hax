@@ -10,8 +10,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
-	showPretty := !isPipe || opts.Display.Pretty
+func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
 	subWidthPadding := "  " // if opts.Display.SubWidth set, this amount of whitespace to pad between elements within row
 	count := int64(0)
 	row := int64(0)
@@ -91,7 +90,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 					fmt.Fprintf(writer, "%s", subWidthPadding)
 				}
 
-				if showPretty {
+				if ioInfo.OutputPretty {
 					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("\033[36m%2X\033[0m", i))
 				} else {
 					fmt.Fprintf(writer, "%2X ", i)
@@ -118,7 +117,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 				offsetPaddingWhitespace = strings.Repeat("   ", int(offsetPadding))
 			}
 		}
-		if showPretty {
+		if ioInfo.OutputPretty {
 			fmt.Fprintf(writer, "\033[36m%13X: \033[0m%s", rowStart, offsetPaddingWhitespace)
 		} else {
 			fmt.Fprintf(writer, "%13X: %s", rowStart, offsetPaddingWhitespace)
@@ -161,7 +160,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 				}
 				// Don't add bold/colored output if this is piped to
 				// another command like less as that will not display nicely.
-				if showPretty {
+				if ioInfo.OutputPretty {
 					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("\033[32m%2s\033[0m", out))
 				} else {
 					fmt.Fprintf(writer, "%2s ", fmt.Sprintf("%2s", out))
@@ -176,7 +175,6 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPip
 
 		row += 1
 	}
-	fmt.Fprintf(writer, "\n")
 }
 
 type zeroPageOmitter struct {

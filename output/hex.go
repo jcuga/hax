@@ -11,7 +11,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -51,7 +51,7 @@ func outputHex(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe
 	}
 }
 
-func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the hex output fills.
 
@@ -126,7 +126,7 @@ func outputHexStringOrList(writer io.Writer, reader *input.FixedLengthBufferedRe
 	}
 }
 
-func outputHexAscii(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe bool, opts options.Options) {
+func outputHexAscii(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0)
 

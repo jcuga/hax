@@ -24,8 +24,7 @@ func Test_Output_displayHex(t *testing.T) {
                    i  n  : \n \t                             - 
            30: 2D 4C 49 46 54 4F 46 46 21 00 00 
                 -  L  I  F  T  O  F  F  !       
-
-` // Note the newlines at end of this str.
+` // Note the newline at end of this str.
 	opts1 := options.Options{
 		InputMode:  options.Hex,
 		OutputMode: options.Display,
@@ -34,13 +33,14 @@ func Test_Output_displayHex(t *testing.T) {
 		Display:    options.DisplayOptions{Width: 16},
 	}
 	reader, closer, isStdin, err := input.GetInput(opts1)
+	ioInfo := options.IOInfo{StdoutIsPipe: true, InputIsStdin: isStdin}
 	if err != nil {
 		t.Fatalf("Failed to create input reader, error: %v", err)
 	}
 	if closer != nil {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 	}
-	Output(&writer, reader, true, isStdin, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
+	Output(&writer, reader, ioInfo, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -61,8 +61,7 @@ func Test_Output_displayHex_HideZeroBytes(t *testing.T) {
                    i  n  : \n \t                             - 
            30: 2D 4C 49 46 54 4F 46 46 21       
                 -  L  I  F  T  O  F  F  !       
-
-` // Note the newlines at end of this str.
+` // Note the newline at end of this str.
 	opts1 := options.Options{
 		InputMode:  options.Hex,
 		OutputMode: options.Display,
@@ -71,6 +70,7 @@ func Test_Output_displayHex_HideZeroBytes(t *testing.T) {
 		Display:    options.DisplayOptions{Width: 16, HideZerosBytes: true},
 	}
 	reader, closer, isStdin, err := input.GetInput(opts1)
+	ioInfo := options.IOInfo{StdoutIsPipe: true, InputIsStdin: isStdin}
 	if err != nil {
 		t.Fatalf("Failed to create input reader, error: %v", err)
 	}
@@ -78,7 +78,7 @@ func Test_Output_displayHex_HideZeroBytes(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, reader, true, isStdin, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
+	Output(&writer, reader, ioInfo, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -110,13 +110,14 @@ func Benchmark_output_displayHex(b *testing.B) {
 			Display:    options.DisplayOptions{Width: 16},
 		}
 		reader, closer, isStdin, err := input.GetInput(opts1)
+		ioInfo := options.IOInfo{InputIsStdin: isStdin}
 		if err != nil {
 			panic(fmt.Sprintf("Failed to create input reader, error: %v", err))
 		}
 		if closer != nil {
 			panic(fmt.Sprintf("Expect nil closer when GetInput on string data, got: %v", closer))
 		}
-		Output(&writer, reader, true, isStdin, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
+		Output(&writer, reader, ioInfo, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 		result := writer.String()
 		if result != expected {
 			panic(fmt.Sprintf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result))
@@ -149,6 +150,7 @@ func Benchmark_output_displayHex_HideZeroBytes(b *testing.B) {
 			Display:    options.DisplayOptions{Width: 16, HideZerosBytes: true},
 		}
 		reader, closer, isStdin, err := input.GetInput(opts1)
+		ioInfo := options.IOInfo{InputIsStdin: isStdin}
 		if err != nil {
 			panic(fmt.Sprintf("Failed to create input reader, error: %v", err))
 		}
@@ -156,7 +158,7 @@ func Benchmark_output_displayHex_HideZeroBytes(b *testing.B) {
 			panic(fmt.Sprintf("Expect nil closer when GetInput on string data, got: %v", closer))
 
 		}
-		Output(&writer, reader, true, isStdin, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
+		Output(&writer, reader, ioInfo, opts1, options.NoCommand, []string{}) // NOTE: isPipe:true for plain text instead of terminal colors
 		result := writer.String()
 		if result != expected {
 			panic(fmt.Sprintf("Unexpected hex display output.\nExpected:\n%q\n\ngot:\n%q", expected, result))

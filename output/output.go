@@ -10,7 +10,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, isStdin bool,
+func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo,
 	opts options.Options, cmd options.Command, cmdArgs []string) error {
 	// use buffered writer for better performance.
 	// ex: displaying line by line to stdout or a file when displaying hex is slow.
@@ -18,25 +18,20 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, i
 	w := bufio.NewWriter(writer)
 
 	defer func() {
-		if !isPipe {
+		if !ioInfo.StdoutIsPipe {
 			// add newline to end of terminal output
 			fmt.Fprintf(w, "\n")
 		}
 		w.Flush()
 	}()
 
-	if !isPipe && isStdin {
-		// add newline to start of output when in terminal
-		fmt.Fprintf(w, "\n")
-	}
-
 	if cmd != options.NoCommand {
 		switch cmd {
 		case options.Strings:
-			commands.Strings(w, reader, isPipe, opts, cmdArgs)
+			commands.Strings(w, reader, ioInfo, opts, cmdArgs)
 			return nil
 		case options.CountBytes:
-			commands.CountBytes(w, reader, isPipe, opts, cmdArgs)
+			commands.CountBytes(w, reader, ioInfo, opts, cmdArgs)
 			return nil
 		default:
 			return fmt.Errorf("Unhandled command: %q", options.CommandToString(cmd))
@@ -45,19 +40,19 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, isPipe, i
 
 	switch opts.OutputMode {
 	case options.Base64:
-		outputBase64(w, reader, isPipe, opts)
+		outputBase64(w, reader, ioInfo, opts)
 	case options.Display:
-		displayHex(w, reader, isPipe, opts)
+		displayHex(w, reader, ioInfo, opts)
 	case options.Hex:
-		outputHex(w, reader, isPipe, opts)
+		outputHex(w, reader, ioInfo, opts)
 	case options.HexString:
-		outputHexStringOrList(w, reader, isPipe, opts)
+		outputHexStringOrList(w, reader, ioInfo, opts)
 	case options.HexList:
-		outputHexStringOrList(w, reader, isPipe, opts)
+		outputHexStringOrList(w, reader, ioInfo, opts)
 	case options.HexAscii:
-		outputHexAscii(w, reader, isPipe, opts)
+		outputHexAscii(w, reader, ioInfo, opts)
 	case options.Raw:
-		outputRaw(w, reader, isPipe, opts)
+		outputRaw(w, reader, ioInfo, opts)
 	default:
 		return fmt.Errorf("Unsupported or not implemented output mode: %v", opts.OutputMode)
 	}

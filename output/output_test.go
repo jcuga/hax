@@ -31,6 +31,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 	// One can't simply set the input mode on opts and pass it to Output().
 	// Output does not modify/wrap the input reader, the GetInput func does.
 	reader, closer, isStdin, err := input.GetInput(opts1)
+	ioInfo := options.IOInfo{InputIsStdin: isStdin}
 	if err != nil {
 		t.Fatalf("Failed to create input reader, error: %v", err)
 	}
@@ -38,7 +39,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, reader, false, isStdin, opts1, options.NoCommand, []string{})
+	Output(&writer, reader, ioInfo, opts1, options.NoCommand, []string{})
 	result := writer.String()
 	if result != expected {
 		t.Fatalf("Unexpected hexlist output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
@@ -54,6 +55,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		Display:    options.DisplayOptions{Width: 8},
 	}
 	reader, closer, isStdin, err = input.GetInput(opts2)
+	ioInfo = options.IOInfo{StdoutIsPipe: true, InputIsStdin: isStdin}
 	if err != nil {
 		t.Fatalf("Failed to create input reader, error: %v", err)
 	}
@@ -61,7 +63,7 @@ func Test_Output_HexListOutputThenInputToRaw(t *testing.T) {
 		t.Errorf("Expect nil closer when GetInput on string data, got: %v", closer)
 
 	}
-	Output(&writer, input.NewFixedLengthBufferedReader(reader), true, isStdin, // NOTE: isPipe true will cause no
+	Output(&writer, input.NewFixedLengthBufferedReader(reader), ioInfo, // NOTE: isPipe true will cause no
 		// extra preceeding/ending newlines to be added.
 		options.Options{
 			InputMode:  options.HexList,

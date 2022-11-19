@@ -161,14 +161,22 @@ func main() {
 		defer inCloser.Close()
 	}
 
-	isPipe := false
-	fi, _ := os.Stdout.Stat()
-	if (fi.Mode() & os.ModeCharDevice) == 0 {
-		isPipe = true
-	}
-
-	if err := output.Output(os.Stdout, inReader, isPipe, isStdin, opts, cmd, cmdArgs); err != nil {
+	ioInfo := getIOInfo(isStdin, &opts)
+	if err := output.Output(os.Stdout, inReader, ioInfo, opts, cmd, cmdArgs); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
+}
+
+func getIOInfo(inputIsStdin bool, opts *options.Options) options.IOInfo {
+	info := options.IOInfo{
+		InputIsStdin: inputIsStdin,
+	}
+	fi, _ := os.Stdout.Stat()
+	if (fi.Mode() & os.ModeCharDevice) == 0 {
+		info.StdoutIsPipe = true
+	}
+	// Don't show pretty output if stdout is a pipe, unless forced via --pretty option:
+	info.OutputPretty = !info.StdoutIsPipe || opts.Display.Pretty
+	return info
 }
