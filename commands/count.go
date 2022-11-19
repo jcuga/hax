@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
@@ -13,11 +12,9 @@ import (
 // NOTE: the input could be a non-raw format like base64, hex string, etc.
 // This will count the "true"/raw amount of bytes represented by the various formats.
 func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options,
-	cmdOptions []string) {
+	cmdOptions []string) error {
 	if len(cmdOptions) != 0 {
-		fmt.Fprintf(os.Stderr, "Command 'count', unexpected arguments. Expect: 0, got: %d.\n", len(cmdOptions))
-		fmt.Fprint(os.Stderr, "Usage: count\n")
-		os.Exit(1)
+		return fmt.Errorf("Command 'count', unexpected arguments. Expect: 0, got: %d.\nUsage: count", len(cmdOptions))
 	}
 
 	buf := make([]byte, options.OutputBufferSize)
@@ -34,8 +31,7 @@ func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 		}
 
 		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("Error reading data: %v", err)
 		}
 		if n == 0 {
 			break
@@ -45,6 +41,8 @@ func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 		if bytesRead >= opts.Limit {
 			break
 		}
+
+		return nil
 	}
 
 	if !opts.Display.Quiet {
@@ -62,4 +60,5 @@ func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 	} else {
 		fmt.Fprintf(writer, "%d", bytesRead)
 	}
+	return nil
 }

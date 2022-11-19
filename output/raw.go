@@ -9,7 +9,7 @@ import (
 	"github.com/jcuga/hax/options"
 )
 
-func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
+func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) error {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0)
 
@@ -24,8 +24,7 @@ func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo
 		}
 
 		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("Error reading data: %v", err)
 		}
 		if n == 0 {
 			break
@@ -35,7 +34,7 @@ func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo
 		if !ioInfo.StdoutIsPipe && bytesWritten == 0 && containsNonPrintable(buf[:n]) {
 			if !opts.Yes {
 				if !promptForYes("Output may be a binary file.  See it anyway?") { // TODO: better wording--see curl for example? IIRC does similar.
-					os.Exit(0) // TODO: or a non-zero, distinct exit code? see how other common tools do it too.
+					return nil
 				}
 			}
 		}
@@ -43,9 +42,10 @@ func outputRaw(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo
 		writer.Write(buf[0:n])
 		bytesWritten += int64(n)
 		if bytesWritten >= opts.Limit {
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // TODO: move to common/util module if needed elsewhere

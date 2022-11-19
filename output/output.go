@@ -22,17 +22,18 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo op
 			// add newline to end of terminal output
 			fmt.Fprintf(w, "\n")
 		}
+		// always flush output writer!
+		// NOTE: used to have os.Exit within various func calls below which DOES NOT call
+		// defered statements. Now returnign errors back to main so this defer fires--TIL.
 		w.Flush()
 	}()
 
 	if cmd != options.NoCommand {
 		switch cmd {
 		case options.Strings:
-			commands.Strings(w, reader, ioInfo, opts, cmdArgs)
-			return nil
+			return commands.Strings(w, reader, ioInfo, opts, cmdArgs)
 		case options.CountBytes:
-			commands.CountBytes(w, reader, ioInfo, opts, cmdArgs)
-			return nil
+			return commands.CountBytes(w, reader, ioInfo, opts, cmdArgs)
 		default:
 			return fmt.Errorf("Unhandled command: %q", options.CommandToString(cmd))
 		}
@@ -40,21 +41,20 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo op
 
 	switch opts.OutputMode {
 	case options.Base64:
-		outputBase64(w, reader, ioInfo, opts)
+		return outputBase64(w, reader, ioInfo, opts)
 	case options.Display:
-		displayHex(w, reader, ioInfo, opts)
+		return displayHex(w, reader, ioInfo, opts)
 	case options.Hex:
-		outputHex(w, reader, ioInfo, opts)
+		return outputHex(w, reader, ioInfo, opts)
 	case options.HexString:
-		outputHexStringOrList(w, reader, ioInfo, opts)
+		return outputHexStringOrList(w, reader, ioInfo, opts)
 	case options.HexList:
-		outputHexStringOrList(w, reader, ioInfo, opts)
+		return outputHexStringOrList(w, reader, ioInfo, opts)
 	case options.HexAscii:
-		outputHexAscii(w, reader, ioInfo, opts)
+		return outputHexAscii(w, reader, ioInfo, opts)
 	case options.Raw:
-		outputRaw(w, reader, ioInfo, opts)
+		return outputRaw(w, reader, ioInfo, opts)
 	default:
 		return fmt.Errorf("Unsupported or not implemented output mode: %v", opts.OutputMode)
 	}
-	return nil
 }

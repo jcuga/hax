@@ -4,13 +4,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
 )
 
-func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
+func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) error {
 	buf := make([]byte, options.OutputBufferSize)
 	bytesWritten := int64(0) // num input bytes written, NOT the number of bytes the base64 output fills.
 	var outWriter io.Writer
@@ -34,8 +33,7 @@ func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, ioI
 		}
 
 		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("Error reading data: %v", err)
 		}
 		if n == 0 {
 			break
@@ -48,4 +46,5 @@ func outputBase64(writer io.Writer, reader *input.FixedLengthBufferedReader, ioI
 			break
 		}
 	}
+	return nil
 }

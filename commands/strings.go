@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"strings"
 
 	"github.com/jcuga/hax/eval"
@@ -13,39 +12,31 @@ import (
 )
 
 func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options,
-	cmdOptions []string) {
+	cmdOptions []string) error {
 	minStringLen := 0
 	maxStringLen := math.MaxInt32
 	if len(cmdOptions) > 2 {
-		fmt.Fprintf(os.Stderr, "Too many arguments for command 'strings', expect 0-2, got: %d\n", len(cmdOptions))
-		fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
-		os.Exit(1)
+		return fmt.Errorf("Too many arguments for command 'strings', expect 0-2, got: %d\nUsage: strings [minLen] [maxLen]", len(cmdOptions))
 	}
 	if len(cmdOptions) > 1 {
 		if parsedMax, err := eval.ParseHexDecOrBin(cmdOptions[1]); err == nil {
 			maxStringLen = int(parsedMax)
 		} else {
-			fmt.Fprintf(os.Stderr, "Command: 'strings', failed to parse max length arg: %q, err: %v\n",
+			return fmt.Errorf("Command: 'strings', failed to parse max length arg: %q, err: %v\nUsage: strings [minLen] [maxLen]",
 				cmdOptions[1], err)
-			fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
-			os.Exit(1)
 		}
 	}
 	if len(cmdOptions) > 0 {
 		if parsedMin, err := eval.ParseHexDecOrBin(cmdOptions[0]); err == nil {
 			minStringLen = int(parsedMin)
 		} else {
-			fmt.Fprintf(os.Stderr, "Command: 'strings', failed to parse min length arg: %q, err: %v\n",
+			return fmt.Errorf("Command: 'strings', failed to parse min length arg: %q, err: %v\nUsage: strings [minLen] [maxLen]",
 				cmdOptions[0], err)
-			fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
-			os.Exit(1)
 		}
 	}
 	if minStringLen > maxStringLen || maxStringLen < 1 {
-		fmt.Fprintf(os.Stderr, "Command: 'strings', invalid min/max len args. min: %d, max: %d. Must have min < max and max > 0\n",
+		return fmt.Errorf("Command: 'strings', invalid min/max len args. min: %d, max: %d. Must have min < max and max > 0\nUsage: strings [minLen] [maxLen]",
 			minStringLen, maxStringLen)
-		fmt.Fprint(os.Stderr, "Usage: strings [minLen] [maxLen]\n")
-		os.Exit(1)
 	}
 
 	buf := make([]byte, options.OutputBufferSize)
@@ -70,8 +61,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo o
 		}
 
 		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("Error reading data: %v", err)
 		}
 		if n == 0 {
 			flushCurString(&curStrBuilder, &outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
@@ -102,6 +92,7 @@ func Strings(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo o
 			break
 		}
 	}
+	return nil
 }
 
 func flushCurString(curStrBuilder, outBuilder *strings.Builder, first *bool, opts *options.Options, curStringStart *int64, showPretty bool,

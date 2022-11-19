@@ -3,14 +3,13 @@ package output
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/jcuga/hax/input"
 	"github.com/jcuga/hax/options"
 )
 
-func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) {
+func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo options.IOInfo, opts options.Options) error {
 	subWidthPadding := "  " // if opts.Display.SubWidth set, this amount of whitespace to pad between elements within row
 	count := int64(0)
 	row := int64(0)
@@ -58,8 +57,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 
 		if err != nil {
 			if err != io.EOF {
-				fmt.Fprintf(os.Stderr, "Error reading data: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("Error reading data: %v", err)
 			}
 		}
 
@@ -76,8 +74,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 
 		if n < 1 {
 			if row == 0 {
-				fmt.Fprintf(writer, "<NO DATA>\n")
-				os.Exit(3) // TODO: document return codes
+				return fmt.Errorf("<NO DATA>")
 			}
 			break
 		}
@@ -175,6 +172,7 @@ func displayHex(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 
 		row += 1
 	}
+	return nil
 }
 
 type zeroPageOmitter struct {
