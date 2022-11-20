@@ -115,8 +115,6 @@ func parseInputMode(mode string) (IOMode, error) {
 		return HexString, nil
 	case "hex-list", "hexlist", "hl", "list", "l":
 		return HexList, nil
-	case "hex-ascii", "hexascii", "hybrid":
-		return HexAscii, nil
 	case "base64", "b64", "b":
 		return Base64, nil
 	// NOTE: not valid input modes: Display, Strings

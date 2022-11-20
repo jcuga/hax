@@ -156,3 +156,18 @@ func Benchmark_outputHexStringOrList_HexList(b *testing.B) {
 		}
 	}
 }
+
+func Test_outputHexAscii(t *testing.T) {
+	var writer strings.Builder
+	reader := strings.NewReader(
+		"Counting \x01\x02\x03 and a \x04\x05\x06 seven!\x0aDone.",
+	)
+	expected := "Counting \\x01\\x02\\x03 and a \\x04\\x05\\x06 seven!\\nDone."
+	ioInfo := options.IOInfo{}
+	outputHexAscii(&writer, input.NewFixedLengthBufferedReader(reader), ioInfo,
+		options.Options{OutputMode: options.HexString, Limit: math.MaxInt64})
+	result := writer.String()
+	if result != expected {
+		t.Errorf("Unexpected output.\nExpected:\n%q\n\ngot:\n%q", expected, result)
+	}
+}
