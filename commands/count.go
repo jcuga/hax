@@ -41,8 +41,6 @@ func CountBytes(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInf
 		if bytesRead >= opts.Limit {
 			break
 		}
-
-		return nil
 	}
 
 	if !opts.Display.Quiet {
