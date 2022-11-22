@@ -183,34 +183,3 @@ func (s *stringsUtf8State) flush(outBuilder *strings.Builder, first *bool, opts 
 	s.runeBuffer = s.runeBuffer[:0]
 	s.bytesRemaining = 0
 }
-
-// func flushCurString(curStrBuilder, outBuilder *strings.Builder, first *bool, opts *options.Options, curStringStart *int64, showPretty bool,
-// 	minStringLen, maxStringLen int) {
-// 	if curStrBuilder.Len() > 0 {
-// 		orig := curStrBuilder.String()
-// 		trimmed := strings.TrimSpace(orig)
-// 		if len(trimmed) > 0 && len(trimmed) >= minStringLen && len(trimmed) <= maxStringLen {
-// 			// account for any preceeding whitespace when showing offset to start of displayed string
-// 			if len(orig) > len(trimmed) {
-// 				idx := strings.IndexByte(orig, trimmed[0])
-// 				if idx > 0 {
-// 					*curStringStart += int64(idx)
-// 				}
-// 			}
-// 			if !*first {
-// 				outBuilder.WriteByte('\n')
-// 			}
-// 			if !opts.Display.Quiet {
-// 				if showPretty {
-// 					outBuilder.WriteString(fmt.Sprintf("\033[36m%13X:\t\033[0m", *curStringStart))
-// 				} else {
-// 					outBuilder.WriteString(fmt.Sprintf("%13X:\t", *curStringStart))
-// 				}
-// 			}
-// 			outBuilder.WriteString(trimmed)
-// 			*first = false
-// 		}
-// 		*curStringStart = -1
-// 		curStrBuilder.Reset()
-// 	}
-// }
