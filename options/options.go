@@ -29,6 +29,7 @@ const (
 	NoCommand Command = iota
 	Calc
 	Strings
+	StringsUtf8
 	CountBytes
 )
 
@@ -40,6 +41,8 @@ func CommandToString(cmd Command) string {
 		return "calc"
 	case Strings:
 		return "strings"
+	case StringsUtf8:
+		return "utf-8"
 	case CountBytes:
 		return "count"
 	default:

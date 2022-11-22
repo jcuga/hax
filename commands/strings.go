@@ -121,7 +121,7 @@ func flushCurString(curStrBuilder, outBuilder *strings.Builder, first *bool, opt
 			outBuilder.WriteString(trimmed)
 			*first = false
 		}
-		*curStringStart = -1
 		curStrBuilder.Reset()
 	}
+	*curStringStart = -1
 }

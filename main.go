@@ -138,6 +138,8 @@ func main() {
 			}
 		case "strings", "string", "str", "strs", "s":
 			cmd = options.Strings
+		case "strings-utf8", "utf8", "str8", "s8":
+			cmd = options.StringsUtf8
 		case "count", "bytes", "count-bytes":
 			cmd = options.CountBytes
 		default:
