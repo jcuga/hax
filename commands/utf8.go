@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/jcuga/hax/eval"
 	"github.com/jcuga/hax/input"
@@ -79,7 +80,13 @@ func StringsUtf8(writer io.Writer, reader *input.FixedLengthBufferedReader, ioIn
 					state.runeBuffer = append(state.runeBuffer, buf[i])
 					if state.bytesRemaining == 0 {
 						// add complete unicode rune to str builder, but DONT call flush
-						state.curStrBuilder.Write(state.runeBuffer)
+						r, _ := utf8.DecodeRune(state.runeBuffer)
+						if r != utf8.RuneError {
+							state.curStrBuilder.WriteRune(r)
+						} else {
+							// wasn't valid, omit and flush any existing str data
+							state.flush(&outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
+						}
 						state.runeBuffer = state.runeBuffer[:0]
 					}
 					continue
@@ -156,7 +163,8 @@ func (s *stringsUtf8State) flush(outBuilder *strings.Builder, first *bool, opts 
 	if s.curStrBuilder.Len() > 0 {
 		orig := s.curStrBuilder.String()
 		trimmed := strings.TrimSpace(orig)
-		if len(trimmed) > 0 && len(trimmed) >= minStringLen && len(trimmed) <= maxStringLen {
+		asRunes := []rune(trimmed)
+		if len(asRunes) > 0 && len(asRunes) >= minStringLen && len(asRunes) <= maxStringLen {
 			// account for any preceeding whitespace when showing offset to start of displayed string
 			if len(orig) > len(trimmed) {
 				idx := strings.IndexByte(orig, trimmed[0])
