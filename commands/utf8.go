@@ -67,9 +67,6 @@ func StringsUtf8(writer io.Writer, reader *input.FixedLengthBufferedReader, ioIn
 		}
 
 		if n == 0 {
-			state.flush(&outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
-			fmt.Fprint(writer, outBuilder.String())
-			outBuilder.Reset()
 			break
 		}
 
@@ -134,17 +131,22 @@ func StringsUtf8(writer io.Writer, reader *input.FixedLengthBufferedReader, ioIn
 			}
 		}
 
-		fmt.Fprint(writer, outBuilder.String())
-		outBuilder.Reset()
+		if outBuilder.Len() > 0 {
+			fmt.Fprint(writer, outBuilder.String())
+			outBuilder.Reset()
+		}
 
 		bytesRead += int64(n)
 		if bytesRead >= opts.Limit {
-			state.flush(&outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
-			fmt.Fprint(writer, outBuilder.String())
-			outBuilder.Reset()
 			break
 		}
 
+	}
+
+	state.flush(&outBuilder, &first, &opts, &curStringStart, ioInfo.OutputPretty, minStringLen, maxStringLen)
+	if outBuilder.Len() > 0 {
+		fmt.Fprint(writer, outBuilder.String())
+		outBuilder.Reset()
 	}
 	return nil
 }
