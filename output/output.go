@@ -30,12 +30,12 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo op
 
 	if cmd != options.NoCommand {
 		switch cmd {
+		case options.CountBytes:
+			return commands.CountBytes(w, reader, ioInfo, opts, cmdArgs)
 		case options.Strings:
 			return commands.Strings(w, reader, ioInfo, opts, cmdArgs)
 		case options.StringsUtf8:
 			return commands.StringsUtf8(w, reader, ioInfo, opts, cmdArgs)
-		case options.CountBytes:
-			return commands.CountBytes(w, reader, ioInfo, opts, cmdArgs)
 		default:
 			return fmt.Errorf("Unhandled command: %q", options.CommandToString(cmd))
 		}

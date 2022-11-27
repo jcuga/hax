@@ -136,9 +136,9 @@ func main() {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
-		case "strings", "string", "str", "strs", "s":
+		case "strings", "str", "s":
 			cmd = options.Strings
-		case "strings-utf8", "utf8", "str8", "s8":
+		case "utf8", "u8", "str8", "s8":
 			cmd = options.StringsUtf8
 		case "count", "bytes", "count-bytes":
 			cmd = options.CountBytes
