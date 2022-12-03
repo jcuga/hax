@@ -36,6 +36,8 @@ func Output(writer io.Writer, reader *input.FixedLengthBufferedReader, ioInfo op
 			return commands.Strings(w, reader, ioInfo, opts, cmdArgs)
 		case options.StringsUtf8:
 			return commands.StringsUtf8(w, reader, ioInfo, opts, cmdArgs)
+		case options.Search:
+			return commands.Search(w, reader, ioInfo, opts, cmdArgs)
 		default:
 			return fmt.Errorf("Unhandled command: %q", options.CommandToString(cmd))
 		}

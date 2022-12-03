@@ -31,6 +31,7 @@ const (
 	CountBytes
 	Strings
 	StringsUtf8
+	Search
 )
 
 func CommandToString(cmd Command) string {
@@ -45,6 +46,8 @@ func CommandToString(cmd Command) string {
 		return "strings"
 	case StringsUtf8:
 		return "utf-8"
+	case Search:
+		return "search"
 	default:
 		return "unknown"
 	}

@@ -142,6 +142,8 @@ func main() {
 			cmd = options.StringsUtf8
 		case "count", "bytes", "count-bytes":
 			cmd = options.CountBytes
+		case "search", "find":
+			cmd = options.Search
 		default:
 			fmt.Fprintf(os.Stderr, "Unrecognized command: %q\n", args[0])
 			os.Exit(1)
