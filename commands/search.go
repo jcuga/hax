@@ -123,8 +123,8 @@ func NewSearcher(inputPattern string, showBeforeBytes int, showAfterBytes int) (
 // searchMatch represents any matched search pattern.
 // Includes any contextual before/after bytes as desired.
 type searchMatch struct {
-	startIndex   int64
-	endIndex     int64
+	startIndex   int
+	endIndex     int
 	matchedValue []byte
 	// Optional before contex to display
 	beforeBytes []byte
@@ -157,5 +157,33 @@ type searcher struct {
 // the subsequent call, the match start would be at index 101 (102nd, as 0 based...)
 // not the index 1 (2nd byte) of the current chunk.
 func (s *searcher) update(inChunk []byte) {
-
+	patternPos := len(s.matchBuffer)
+	for i := 0; i < len(inChunk); i++ {
+		if s.pattern[patternPos] == anyByte || uint16(inChunk[i]) == s.pattern[patternPos] {
+			s.matchBuffer = append(s.matchBuffer, inChunk[i])
+			patternPos++
+			if len(s.matchBuffer) == len(s.pattern) {
+				copied := make([]byte, len(s.matchBuffer))
+				copy(copied, s.matchBuffer)
+				newMatch := searchMatch{
+					matchedValue: copied,
+					endIndex:     s.bytesConsumed + i,
+					startIndex:   (s.bytesConsumed + i) - (len(copied) - 1),
+				}
+				s.matches = append(s.matches, newMatch)
+				s.matchBuffer = s.matchBuffer[:0]
+				patternPos = 0
+			}
+		} else {
+			// TODO: instead of clearning completely, see if partial overlap match
+			s.matchBuffer = s.matchBuffer[:0]
+			patternPos = 0
+		}
+	}
+	s.bytesConsumed += len(inChunk)
 }
+
+// TODO: figure out how to get pre-post context data efficiently
+// TODO: ability to take/consume hits that are found and contextualized so more streaming like?
+// NOTE: could be found, but not consumed trailing bytes yet for context...
+// TODO: then a final flush() if found near end with not enough for desired trailing context?

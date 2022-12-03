@@ -5,6 +5,79 @@ import (
 	"testing"
 )
 
+func Test_searcher_update_matchAcrossCalls(t *testing.T) {
+	s, err := NewSearcher("ab", 2, 3)
+	if err != nil {
+		t.Fatalf("Unexpected err creating searcher: %s", err)
+	}
+
+	// Search finds value ("ab") split across two update calls:
+	s.update([]byte("hello"))
+	s.update([]byte("xyza"))
+	s.update([]byte("bqrst"))
+	if len(s.matches) != 1 {
+		t.Fatalf("Expected %d matches, got: %d", 1, len(s.matches))
+	}
+	if !reflect.DeepEqual(s.matches[0].matchedValue, []byte("ab")) {
+		t.Errorf("Unexpected match value, expect: %q, got: %q", "ab", s.matches[0].matchedValue)
+	}
+	expectedStart, expectedEnd, expectedConsumed := 8, 9, 14
+	if s.matches[0].startIndex != expectedStart {
+		t.Errorf("Unexpected startIndex value, expect: %d, got: %d", expectedStart, s.matches[0].startIndex)
+	}
+	if s.matches[0].endIndex != expectedEnd {
+		t.Errorf("Unexpected endIndex value, expect: %d, got: %d", expectedEnd, s.matches[0].endIndex)
+	}
+	if s.bytesConsumed != expectedConsumed {
+		t.Errorf("Unexpected bytesConsumed value, expect: %d, got: %d", expectedConsumed, s.bytesConsumed)
+	}
+}
+
+func Test_searcher_update_anyByteMatches(t *testing.T) {
+	// NOTE: the 2nd ? is an escaped/literal question mark, not an anyByte
+	s, err := NewSearcher("\xAAb?\\?", 2, 3)
+	if err != nil {
+		t.Fatalf("Unexpected err creating searcher: %s", err)
+	}
+
+	// Finds 2 matches, note the last bit doesn't match because
+	// we have a literal ? (via \\?) not an anyByte
+	s.update([]byte("xx\xAAbc?xx\xAAb\x99?xxx\xAAbzyaa"))
+	if len(s.matches) != 2 {
+		t.Fatalf("Expected %d matches, got: %d", 2, len(s.matches))
+	}
+
+	if !reflect.DeepEqual(s.matches[0].matchedValue, []byte("\xAAbc?")) {
+		t.Errorf("Unexpected match value, expect: %q, got: %q", "ab", s.matches[0].matchedValue)
+	}
+	expectedStart, expectedEnd, expectedConsumed := 2, 5, 21
+	if s.matches[0].startIndex != expectedStart {
+		t.Errorf("Unexpected startIndex value, expect: %d, got: %d", expectedStart, s.matches[0].startIndex)
+	}
+	if s.matches[0].endIndex != expectedEnd {
+		t.Errorf("Unexpected endIndex value, expect: %d, got: %d", expectedEnd, s.matches[0].endIndex)
+	}
+
+	if !reflect.DeepEqual(s.matches[1].matchedValue, []byte("\xAAb\x99?")) {
+		t.Errorf("Unexpected match value, expect: %q, got: %q", "ab", s.matches[1].matchedValue)
+	}
+	expectedStart, expectedEnd = 8, 11
+	if s.matches[1].startIndex != expectedStart {
+		t.Errorf("Unexpected startIndex value, expect: %d, got: %d", expectedStart, s.matches[1].startIndex)
+	}
+	if s.matches[1].endIndex != expectedEnd {
+		t.Errorf("Unexpected endIndex value, expect: %d, got: %d", expectedEnd, s.matches[1].endIndex)
+	}
+
+	if s.bytesConsumed != expectedConsumed {
+		t.Errorf("Unexpected bytesConsumed value, expect: %d, got: %d", expectedConsumed, s.bytesConsumed)
+	}
+}
+
+// TODO: wildcard
+// TODO: overlap
+// TODO: overlap more often because of wild card?
+
 func Test_parseBeforeAfter(t *testing.T) {
 	type testCase struct {
 		input          string
@@ -45,9 +118,6 @@ func Test_parseBeforeAfter(t *testing.T) {
 		}
 	}
 }
-
-// TODO: unit test new searcher, check contents of s.pattern, try error cases (invalid hex sequence, trailing slash, etc)
-// TODO: also test \x0a vs \n input...
 
 func Test_NewSearcher(t *testing.T) {
 	type testCase struct {
