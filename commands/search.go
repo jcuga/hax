@@ -114,6 +114,19 @@ func NewSearcher(inputPattern string, showBeforeBytes int, showAfterBytes int) (
 			s.pattern = append(s.pattern, uint16(inputPattern[i]))
 		}
 	}
+
+	// Don't allow entirely anyByte as that would
+	// match all bytes of input every time and is silly.
+	allAnyByte := true
+	for _, val := range s.pattern {
+		if val != anyByte {
+			allAnyByte = false
+			break
+		}
+	}
+	if allAnyByte {
+		return nil, errors.New("pattern cannot be all '?' (match any byte)")
+	}
 	// pre-allocate capacity to match lenth of search pattern as we'll buffer
 	// the same amount while building a match
 	s.matchBuffer = make([]byte, 0, len(s.pattern))
@@ -182,8 +195,3 @@ func (s *searcher) update(inChunk []byte) {
 	}
 	s.bytesConsumed += len(inChunk)
 }
-
-// TODO: figure out how to get pre-post context data efficiently
-// TODO: ability to take/consume hits that are found and contextualized so more streaming like?
-// NOTE: could be found, but not consumed trailing bytes yet for context...
-// TODO: then a final flush() if found near end with not enough for desired trailing context?

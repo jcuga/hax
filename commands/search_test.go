@@ -74,7 +74,6 @@ func Test_searcher_update_anyByteMatches(t *testing.T) {
 	}
 }
 
-// TODO: wildcard
 // TODO: overlap
 // TODO: overlap more often because of wild card?
 
@@ -151,6 +150,9 @@ func Test_NewSearcher(t *testing.T) {
 		{"a\\x", 3, 5, nil, "'\\x' without trailing 2 char hex"},
 		{"a\\x1", 3, 5, nil, "'\\x' without trailing 2 char hex"},
 		{"a\\x12", 3, 5, []uint16{'a', '\x12'}, ""},
+		{"", 3, 5, nil, "empty pattern"},
+		{"?", 3, 5, nil, "pattern cannot be all '?' (match any byte)"},
+		{"????", 3, 5, nil, "pattern cannot be all '?' (match any byte)"},
 	}
 	for _, c := range cases {
 		s, e := NewSearcher(c.inputPattern, c.inputBeforeBytes, c.inputAfterBytes)
